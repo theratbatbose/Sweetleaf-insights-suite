@@ -2,6 +2,7 @@
   "name": "sweetleaf-suite",
   "private": true,
   "version": "0.1.0",
+  "homepage": "https://theratbatbose.github.io/Sweetleaf-insights-suite/",
   "type": "module",
   "scripts": {
     "dev": "vite",
