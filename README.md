@@ -1,4 +1,4 @@
-# Sweetleaf Suite (down )
+# Sweetleaf Suite
 
 A private, browser-based workspace for organizing qualitative interview transcripts, observations, themes, and topline findings.
 

@@ -65,6 +65,7 @@ type CutReport = {
 type TranscriptSegment = { time: string; text: string };
 type RelationshipEndpoint = { kind: "obs" | "cluster"; id: string };
 type Relationship = { id: string; from: RelationshipEndpoint; to: RelationshipEndpoint; note: string };
+type SearchResult = { key: string; label: string; kind: "Participant" | "Observation" | "Cluster"; id: string };
 
 type SavedWorkspace = {
   participants?: Participant[];
@@ -111,6 +112,28 @@ function formatMinutesAsTime(value: number) {
   return `${String(Math.floor(totalSeconds / 60)).padStart(2, "0")}:${String(totalSeconds % 60).padStart(2, "0")}`;
 }
 
+function findFreeCanvasPosition(observations: Observation[], clusters: Cluster[], kind: "obs" | "cluster") {
+  const width = kind === "obs" ? 215 : 248;
+  const height = kind === "obs" ? 175 : 220;
+  const gap = 24;
+
+  for (let y = 24; y < 5000; y += 200) {
+    for (let x = 24; x < 752; x += 280) {
+      const overlapsObservation = observations.some((item) =>
+        x < item.x + 215 + gap && x + width + gap > item.x &&
+        y < item.y + 175 + gap && y + height + gap > item.y
+      );
+      const overlapsCluster = clusters.some((item) =>
+        x < item.x + 248 + gap && x + width + gap > item.x &&
+        y < item.y + 220 + gap && y + height + gap > item.y
+      );
+      if (!overlapsObservation && !overlapsCluster) return { x, y };
+    }
+  }
+
+  return { x: 24, y: 5000 };
+}
+
 function parseTranscriptFile(contents: string): TranscriptSegment[] {
   const segments: TranscriptSegment[] = [];
   const lines = contents.replace(/\r/g, "").split("\n");
@@ -118,6 +141,25 @@ function parseTranscriptFile(contents: string): TranscriptSegment[] {
 
   for (let index = 0; index < lines.length; index += 1) {
     const line = lines[index].trim();
+    if (!line || /^WEBVTT(?:\s|$)/i.test(line) || /^\d+$/.test(line) || /^(?:timestamp|time|start(?: time)?|timecode)\s*[,;\t]/i.test(line)) continue;
+    const subtitleMatch = line.match(/^\s*(?:(\d{1,2}):)?(\d{2}):(\d{2})[,.]\d+\s*-->/);
+    if (subtitleMatch) {
+      const minute = Number(subtitleMatch[1] ?? 0) * 60 + Number(subtitleMatch[2]);
+      const time = `${String(minute).padStart(2, "0")}:${String(Number(subtitleMatch[3])).padStart(2, "0")}`;
+      const cueText = lines.slice(index + 1).map((cueLine) => cueLine.trim()).find((cueLine) => cueLine && !/^\d+$/.test(cueLine));
+      if (cueText) segments.push({ time, text: cueText });
+      continue;
+    }
+    const csvMatch = line.match(/^\"?(\d{1,2}:\d{2}(?::\d{2})?(?:[,.]\d+)?)\"?\s*,\s*\"?(.+?)\"?$/);
+    if (csvMatch) {
+      const timeParts = csvMatch[1].replace(",", ".").split(":");
+      const normalizedTime = timeParts.length === 3
+        ? `${String(Number(timeParts[0]) * 60 + Number(timeParts[1])).padStart(2, "0")}:${String(Number.parseFloat(timeParts[2])).padStart(2, "0")}`
+        : `${String(Number(timeParts[0])).padStart(2, "0")}:${String(Number.parseFloat(timeParts[1])).padStart(2, "0")}`;
+      const csvText = csvMatch[2].replace(/^\"|\"$/g, "").replace(/\"\"/g, "\"");
+      if (csvText) segments.push({ time: normalizedTime, text: csvText });
+      continue;
+    }
     const match = line.match(timestampPattern);
     if (!match) continue;
     const [minutePart, secondPart] = match[2].split(":").map(Number);
@@ -133,7 +175,7 @@ function parseTranscriptFile(contents: string): TranscriptSegment[] {
   }
 
   if (segments.length) return segments;
-  return lines.map((line) => line.trim()).filter(Boolean).map((text, index) => ({
+  return lines.map((line) => line.trim()).filter((line) => line && !/^WEBVTT(?:\s|$)/i.test(line) && !/^\d+$/.test(line)).map((text, index) => ({
     time: `${String(Math.floor(index / 60)).padStart(2, "0")}:${String(index % 60).padStart(2, "0")}`,
     text,
   }));
@@ -294,9 +336,9 @@ function App() {
   const [savedWorkspace] = useState(readSavedWorkspace);
   const [participants, setParticipants] = useState<Participant[]>(savedWorkspace.participants ?? initialParticipants);
   const [phase, setPhase] = useState<Phase>("Observation");
-  const [selectedParticipantId, setSelectedParticipantId] = useState("P17");
+  const [selectedParticipantId, setSelectedParticipantId] = useState(savedWorkspace.participants?.[0]?.id ?? "P17");
   const [selectedCut, setSelectedCut] = useState("Loyalists");
-  const [showCutReport, setShowCutReport] = useState(true);
+  const [showCutReport, setShowCutReport] = useState(false);
   const [showObservationComposer, setShowObservationComposer] = useState(false);
   const [selectedTranscript, setSelectedTranscript] = useState("");
   const [observationNote, setObservationNote] = useState("");
@@ -344,7 +386,7 @@ The implication is that...`);
     }
   }, [participants, observations, clusters, connections, transcripts, toplineBlocks, newToplineText, toplineTitle, toplineBody]);
 
-  const selectedParticipant = participants.find((p) => p.id === selectedParticipantId)!;
+  const selectedParticipant = participants.find((p) => p.id === selectedParticipantId) ?? participants[0] ?? initialParticipants[0];
   const cutReport = cutReports[selectedCut] ?? cutReports.Loyalists;
 
   const currentObservations = observations.filter((o) => o.participantId === selectedParticipant.id);
@@ -354,10 +396,10 @@ The implication is that...`);
     if (!search.trim()) return [];
     const q = search.toLowerCase();
     return [
-      ...participants.filter((p) => `${p.name} ${p.cut} ${p.profile}`.toLowerCase().includes(q)).map((p) => `Participant · ${p.name}`),
-      ...observations.filter((o) => `${o.code} ${o.note} ${o.quote}`.toLowerCase().includes(q)).map((o) => `Observation · ${o.code}`),
-      ...clusters.filter((c) => `${c.title} ${c.thought}`.toLowerCase().includes(q)).map((c) => `Cluster · ${c.title}`),
-    ];
+      ...participants.filter((p) => `${p.name} ${p.cut} ${p.profile}`.toLowerCase().includes(q)).map((p) => ({ key: `participant:${p.id}`, kind: "Participant" as const, id: p.id, label: `Participant · ${p.name}` })),
+      ...observations.filter((o) => `${o.code} ${o.note} ${o.quote}`.toLowerCase().includes(q)).map((o) => ({ key: `observation:${o.id}`, kind: "Observation" as const, id: o.id, label: `Observation · ${o.code}` })),
+      ...clusters.filter((c) => `${c.title} ${c.thought}`.toLowerCase().includes(q)).map((c) => ({ key: `cluster:${c.id}`, kind: "Cluster" as const, id: c.id, label: `Cluster · ${c.title}` })),
+    ] satisfies SearchResult[];
   }, [search, participants, observations, clusters]);
 
   const handleTranscriptSelect = (quote: string, time: number) => {
@@ -394,13 +436,38 @@ The implication is that...`);
     participants, observations, clusters, connections, transcripts, toplineBlocks, toplineText: newToplineText, toplineTitle, toplineBody,
   }, null, 2), "application/json");
 
+  const restoreSampleWorkspace = () => {
+    setParticipants(initialParticipants);
+    setObservations(initialObservations);
+    setClusters(initialClusters);
+    setConnections(initialConnections);
+    setTranscripts(sampleTranscripts);
+    setToplineBlocks(["c1"]);
+    setNewToplineText("The category is not discovered in isolation. Familiarity, social proof and the lived experience of other people make unfamiliar choices feel safer—and more credible.");
+    setToplineTitle("The role of social proof in trial");
+    setToplineBody(`The role of social proof is especially clear in the moments where participants are weighing risk against novelty.
+
+What matters is not simply that people hear from others. It is that another person's lived experience makes an unfamiliar choice feel less uncertain.
+
+The implication is that...`);
+    setSelectedParticipantId("P17");
+    setSelectedCut("Loyalists");
+    setCurrentTime(0);
+    setSelectedObsIds([]);
+    setSelectedClusterId("c1");
+    setPhase("Observation");
+    setShowCutReport(false);
+    setShowObservationComposer(false);
+    setShowSettings(false);
+  };
+
   const restoreWorkspaceBackup = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
     try {
       const backup = JSON.parse(await file.text()) as SavedWorkspace;
-      if (!Array.isArray(backup.participants) || !Array.isArray(backup.observations) || !Array.isArray(backup.clusters)) {
-        throw new Error("This file is missing participant, observation, or cluster data.");
+      if (!Array.isArray(backup.participants) || backup.participants.length === 0 || !Array.isArray(backup.observations) || !Array.isArray(backup.clusters)) {
+        throw new Error("This file needs at least one participant and valid observation and cluster lists.");
       }
       setParticipants(backup.participants);
       setObservations(backup.observations);
@@ -421,24 +488,25 @@ The implication is that...`);
     }
   };
 
-  const openSearchResult = (item: string) => {
-    const [kind, value] = item.split(" · ");
-    if (kind === "Participant") {
-      const participant = participants.find((entry) => entry.name === value);
+  const openSearchResult = (item: SearchResult) => {
+    if (item.kind === "Participant") {
+      const participant = participants.find((entry) => entry.id === item.id);
       if (participant) {
         setSelectedParticipantId(participant.id);
+        setCurrentTime(0);
         setShowCutReport(false);
         setPhase("Observation");
       }
-    } else if (kind === "Observation") {
-      const observation = observations.find((entry) => entry.code === value);
+    } else if (item.kind === "Observation") {
+      const observation = observations.find((entry) => entry.id === item.id);
       if (observation) {
         setSelectedParticipantId(observation.participantId);
+        setCurrentTime(timeToMinutes(observation.time));
         setShowCutReport(false);
         setPhase("Observation");
       }
-    } else if (kind === "Cluster") {
-      const cluster = clusters.find((entry) => entry.title === value);
+    } else if (item.kind === "Cluster") {
+      const cluster = clusters.find((entry) => entry.id === item.id);
       if (cluster) {
         setSelectedClusterId(cluster.id);
         setPhase("Inference");
@@ -450,16 +518,16 @@ The implication is that...`);
 
   const saveObservation = () => {
     if (!observationNote.trim()) return;
+    const position = findFreeCanvasPosition(observations, clusters, "obs");
     const newObs: Observation = {
       id: `o${Date.now()}`,
       participantId: selectedParticipant.id,
       code: observationCode.trim() || "Unlabelled",
       note: observationNote.trim(),
-      quote: selectedTranscript || "Selected transcript excerpt",
+      quote: selectedTranscript,
       time: formatMinutesAsTime(currentTime),
       duration: 18,
-      x: 130 + (observations.length % 3) * 180,
-      y: 110 + (observations.length % 4) * 105,
+      ...position,
     };
     setObservations((prev) => [...prev, newObs]);
     setObservationNote("");
@@ -475,13 +543,13 @@ The implication is that...`);
   const createClusterFromSelection = () => {
     if (!selectedObsIds.length) return;
     const ids = [...selectedObsIds];
+    const position = findFreeCanvasPosition(observations, clusters, "cluster");
     const cluster: Cluster = {
       id: `c${Date.now()}`,
       title: "New cluster",
       thought: "Add the researcher's synthesized thought here.",
       observationIds: ids,
-      x: 760,
-      y: 150 + clusters.length * 60,
+      ...position,
     };
     setClusters((prev) => [...prev, cluster]);
     setSelectedClusterId(cluster.id);
@@ -518,7 +586,7 @@ The implication is that...`);
           </div>
           {search && (
             <div className="search-results">
-              {allSearchResults.length ? allSearchResults.map((item) => <button className="search-result" key={item} onClick={() => openSearchResult(item)}>{item}</button>) : <div className="search-empty">No matches.</div>}
+              {allSearchResults.length ? allSearchResults.map((item) => <button className="search-result" key={item.key} onClick={() => openSearchResult(item)}>{item.label}</button>) : <div className="search-empty">No matches.</div>}
             </div>
           )}
         </div>
@@ -540,7 +608,7 @@ The implication is that...`);
               <button className="secondary-button" onClick={() => {
                 if (window.confirm("Delete saved Sweetleaf work from this browser and restore the sample study?")) {
                   localStorage.removeItem(WORKSPACE_STORAGE_KEY);
-                  window.location.reload();
+                  restoreSampleWorkspace();
                 }
               }}>Restore sample study</button>
             </div>
@@ -693,6 +761,12 @@ function ObservationPhase(props: {
     setShowComposer,
   } = props;
 
+  const timelineEnd = Math.max(
+    44,
+    ...transcript.map((line) => Math.ceil(timeToMinutes(line.time))),
+    ...currentObservations.map((observation) => Math.ceil(timeToMinutes(observation.time)))
+  );
+
   return (
     <div className="phase-body observation-layout">
       <aside className="left-panel">
@@ -718,7 +792,7 @@ function ObservationPhase(props: {
           <div className="panel-label">Participants</div>
           <button className="nav-item" onClick={props.onAddParticipant}><Plus size={15} /> Add participant</button>
           {props.participants.map((p) => (
-            <button key={p.id} className={`participant-item ${selectedParticipantId === p.id ? "selected" : ""}`} onClick={() => { setSelectedParticipantId(p.id); setShowCutReport(false); }}>
+            <button key={p.id} className={`participant-item ${selectedParticipantId === p.id ? "selected" : ""}`} onClick={() => { setSelectedParticipantId(p.id); setCurrentTime(0); setShowCutReport(false); }}>
               <div className="mini-avatar">{p.name.slice(0, 1)}</div>
               <div>
                 <strong>{p.id}</strong>
@@ -763,15 +837,15 @@ function ObservationPhase(props: {
                 </div>
                 <div className="timeline-wrap">
                   <div className="timeline-ruler">
-                    <span>00:00</span><span>10:00</span><span>20:00</span><span>30:00</span><span>40:00</span>
+                    {[0, 1, 2, 3, 4].map((mark) => <span key={mark}>{formatMinutesAsTime(timelineEnd * mark / 4)}</span>)}
                   </div>
-                  <input className="timeline-slider" type="range" min="0" max="44" step="0.01" value={Math.min(44, currentTime)} onChange={(e) => setCurrentTime(Number(e.target.value))} aria-label="Transcript time position" />
+                  <input className="timeline-slider" type="range" min="0" max={timelineEnd} step="0.01" value={Math.min(timelineEnd, currentTime)} onChange={(e) => setCurrentTime(Number(e.target.value))} aria-label="Transcript time position" />
                   <div className="timeline-dots">
                     {currentObservations.map((o) => {
-                      const left = Math.min(97, Math.max(2, (timeToMinutes(o.time) / 44) * 100));
+                      const left = Math.min(97, Math.max(2, (timeToMinutes(o.time) / timelineEnd) * 100));
                       return <button key={o.id} className="timeline-dot" style={{ left: `${left}%` }} title={o.code} onClick={() => setCurrentTime(timeToMinutes(o.time))} />;
                     })}
-                    <span className="playhead" style={{ left: `${(currentTime / 44) * 100}%` }} />
+                    <span className="playhead" style={{ left: `${(Math.min(timelineEnd, currentTime) / timelineEnd) * 100}%` }} />
                   </div>
                   <div className="video-controls">
                     <div>
@@ -820,7 +894,7 @@ function ObservationPhase(props: {
                   <div key={o.id} className="observation-mini">
                     <div className="observation-mini-top"><span className="tag"><Tag size={11} /> {o.code}</span><span>{o.time}</span></div>
                     <p>{o.note}</p>
-                    <div className="observation-source"><Video size={13} /> Source linked</div>
+                    <div className="observation-source">{o.quote ? <><Video size={13} /> Transcript linked</> : "No transcript quote attached"}</div>
                   </div>
                 ))}
               </div>
@@ -850,7 +924,7 @@ function ObservationPhase(props: {
                   </label>
                   <div className="modal-actions">
                     <button className="secondary-button" onClick={() => setShowComposer(false)}>Cancel</button>
-                    <button className="primary-button" onClick={saveObservation}>Log observation</button>
+                    <button className="primary-button" onClick={saveObservation} disabled={!observationNote.trim()}>Log observation</button>
                   </div>
                 </div>
               </div>
@@ -859,8 +933,15 @@ function ObservationPhase(props: {
         ) : (
           <CutReportPanel
             cutReport={cutReport}
+            availableParticipantIds={props.participants.map((entry) => entry.id)}
             onBackToParticipant={() => setShowCutReport(false)}
-            onExcerpt={(quote, time) => handleTranscriptSelect(quote, timeToMinutes(time))}
+            onExcerpt={(quote, time) => {
+              const sourceId = cutReport.excerpts.find((excerpt) => excerpt.quote === quote && excerpt.time === time)?.participant.split(" · ")[0];
+              if (!sourceId || !props.participants.some((entry) => entry.id === sourceId)) return;
+              setSelectedParticipantId(sourceId);
+              setShowCutReport(false);
+              handleTranscriptSelect(quote, timeToMinutes(time));
+            }}
           />
         )}
       </section>
@@ -933,7 +1014,7 @@ function TranscriptImport({ participantId, onImport }: { participantId: string; 
   );
 }
 
-function CutReportPanel({ cutReport, onBackToParticipant, onExcerpt }: { cutReport: CutReport; onBackToParticipant: () => void; onExcerpt: (q: string, t: string) => void }) {
+function CutReportPanel({ cutReport, availableParticipantIds, onBackToParticipant, onExcerpt }: { cutReport: CutReport; availableParticipantIds: string[]; onBackToParticipant: () => void; onExcerpt: (q: string, t: string) => void }) {
   return (
     <div className="cut-report">
       <div className="report-head">
@@ -960,13 +1041,13 @@ function CutReportPanel({ cutReport, onBackToParticipant, onExcerpt }: { cutRepo
         <ReportSection title="Key excerpts" wide>
           <div className="excerpt-list">
             {cutReport.excerpts.map((e) => (
-              <button className="excerpt-item" key={`${e.participant}-${e.time}`} onClick={() => onExcerpt(e.quote, e.time)}>
+              <button className="excerpt-item" key={`${e.participant}-${e.time}`} disabled={!availableParticipantIds.includes(e.participant.split(" · ")[0])} onClick={() => onExcerpt(e.quote, e.time)} title={availableParticipantIds.includes(e.participant.split(" · ")[0]) ? "Open this participant's evidence" : "Illustrative excerpt; this participant is not included in the sample workspace"}>
                 <div>
                   <span className="excerpt-participant">{e.participant}</span>
                   <span className="excerpt-time">{e.time}</span>
                 </div>
                 <p>“{e.quote}”</p>
-                <span className="view-source">View source <ArrowRight size={13} /></span>
+                <span className="view-source">{availableParticipantIds.includes(e.participant.split(" · ")[0]) ? "View source" : "Sample excerpt · source unavailable"} <ArrowRight size={13} /></span>
               </button>
             ))}
           </div>
@@ -1042,8 +1123,9 @@ function InferencePhase(props: {
   const [editingRelationship, setEditingRelationship] = useState<string | null>(null);
 
   const getCanvasPoint = (e: React.PointerEvent) => {
-    const rect = canvasRef.current?.getBoundingClientRect();
-    if (!rect) return { x: 0, y: 0 };
+    const canvas = canvasRef.current;
+    if (!canvas) return { x: 0, y: 0 };
+    const rect = canvas.getBoundingClientRect();
     return {
       x: e.clientX - rect.left,
       y: e.clientY - rect.top,
@@ -1059,14 +1141,13 @@ function InferencePhase(props: {
 
     if (!item) return;
 
-    canvasRef.current?.setPointerCapture(e.pointerId);
+    e.currentTarget.setPointerCapture(e.pointerId);
     setDragState({
       kind,
       id,
       offsetX: x - item.x,
       offsetY: y - item.y,
     });
-    e.preventDefault();
     e.stopPropagation();
   };
 
@@ -1275,7 +1356,7 @@ function InferencePhase(props: {
               </div>
               <div className="tag-row"><span className="tag"><Tag size={10} /> {o.code}</span></div>
               <p>{o.note}</p>
-              <div className="canvas-foot">{o.participantId} · source linked</div>
+              <div className="canvas-foot">{o.participantId} · {o.quote ? "transcript linked" : "no quote attached"}</div>
             </div>
           ))}
 

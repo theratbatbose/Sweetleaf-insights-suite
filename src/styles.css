@@ -32,6 +32,10 @@ body {
 
 button, input, textarea { font: inherit; }
 button { cursor: pointer; }
+button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible {
+  outline: 3px solid rgba(55, 102, 87, .45);
+  outline-offset: 2px;
+}
 
 .app-shell { min-height: 100vh; }
 
@@ -212,7 +216,7 @@ button { cursor: pointer; }
 }
 .observation-modal textarea { height:92px; resize:vertical; }
 .observation-modal textarea:focus, .observation-modal input:focus, .observation-modal select:focus { border-color:#9caf9f; box-shadow:0 0 0 3px rgba(79,117,97,.09); }
-.modal-actions { display:flex; justify-content:flex-end; gap:8px; margin-top:15px; }
+.modal-actions { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:8px; margin-top:15px; }
 .primary-button, .secondary-button {
   border-radius:10px; padding:9px 12px; font-size:11px; border:1px solid transparent;
 }
@@ -236,6 +240,8 @@ button { cursor: pointer; }
 .excerpt-list { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:11px; }
 .excerpt-item { text-align:left; border:1px solid var(--line); background:#fffdf8; border-radius:12px; padding:12px; }
 .excerpt-item:hover { border-color:#b3c6b6; transform:translateY(-1px); }
+.excerpt-item:disabled { opacity:.7; cursor:not-allowed; }
+.excerpt-item:disabled:hover { border-color:var(--line); transform:none; }
 .excerpt-item > div { display:flex; justify-content:space-between; font-size:9px; color:#938c7f; }
 .excerpt-participant { font-weight:700; color:#5e6f63; }
 .excerpt-item p { font-family:"Playfair Display", Georgia, serif; font-size:15px; line-height:1.4; margin:10px 0; color:#423f38; }
@@ -365,6 +371,7 @@ button { cursor: pointer; }
   .study-banner h1 { font-size:23px; }
   .observation-modal { width:calc(100vw - 24px); }
   .transcript-import { align-items:flex-start; flex-direction:column; }
+  .search-overlay { right:12px; width:calc(100vw - 24px); }
 }
 
 
