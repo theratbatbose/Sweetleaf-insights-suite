@@ -1,27 +1,22 @@
 import {
   ArrowLeft,
   ArrowRight,
-  ChevronDown,
-  CirclePlay,
   FileText,
   FolderOpen,
   GripVertical,
   Link2,
-  Menu,
   MoreHorizontal,
-  Pause,
   Plus,
   Search,
   Settings2,
   Sparkles,
   StickyNote,
   Tag,
-  UserRound,
   Video,
   WandSparkles,
   X,
 } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 
 type Phase = "Observation" | "Inference" | "Topline";
@@ -30,7 +25,7 @@ type Participant = {
   id: string;
   name: string;
   city: string;
-  age: number;
+  age: number | null;
   cut: string;
   profile: string;
   session: string;
@@ -67,7 +62,106 @@ type CutReport = {
   explore: string;
 };
 
-const participants: Participant[] = [
+type TranscriptSegment = { time: string; text: string };
+type RelationshipEndpoint = { kind: "obs" | "cluster"; id: string };
+type Relationship = { id: string; from: RelationshipEndpoint; to: RelationshipEndpoint; note: string };
+
+type SavedWorkspace = {
+  participants?: Participant[];
+  observations?: Observation[];
+  clusters?: Cluster[];
+  connections?: Relationship[];
+  transcripts?: Record<string, TranscriptSegment[]>;
+  toplineBlocks?: string[];
+  toplineText?: string;
+  toplineTitle?: string;
+  toplineBody?: string;
+};
+
+const WORKSPACE_STORAGE_KEY = "sweetleaf-suite-workspace-v1";
+
+function readSavedWorkspace(): SavedWorkspace {
+  try {
+    const raw = localStorage.getItem(WORKSPACE_STORAGE_KEY);
+    return raw ? JSON.parse(raw) as SavedWorkspace : {};
+  } catch {
+    return {};
+  }
+}
+
+function downloadTextFile(filename: string, content: string, type = "text/plain") {
+  const blob = new Blob([content], { type: `${type};charset=utf-8` });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function timeToMinutes(time: string) {
+  const [minutes = "0", seconds = "0"] = time.split(":");
+  return Number(minutes) + Number(seconds) / 60;
+}
+
+function formatMinutesAsTime(value: number) {
+  const totalSeconds = Math.max(0, Math.round(value * 60));
+  return `${String(Math.floor(totalSeconds / 60)).padStart(2, "0")}:${String(totalSeconds % 60).padStart(2, "0")}`;
+}
+
+function parseTranscriptFile(contents: string): TranscriptSegment[] {
+  const segments: TranscriptSegment[] = [];
+  const lines = contents.replace(/\r/g, "").split("\n");
+  const timestampPattern = /^\s*\[?(\d{1,2}:)?(\d{1,2}:\d{2})(?:[,.]\d+)?\]?\s*(.*)$/;
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index].trim();
+    const match = line.match(timestampPattern);
+    if (!match) continue;
+    const [minutePart, secondPart] = match[2].split(":").map(Number);
+    const minute = minutePart + (match[1] ? Number(match[1].slice(0, -1)) * 60 : 0);
+    const time = `${String(minute).padStart(2, "0")}:${String(secondPart).padStart(2, "0")}`;
+    const rawText = match[3].trim();
+    let text = rawText.replace(/^[,;\s-]+/, "").replace(/^\"|\"$/g, "");
+    if (rawText.includes("-->")) {
+      const nextLine = lines[index + 1]?.trim();
+      text = nextLine && !/^\d+$/.test(nextLine) ? nextLine : "";
+    }
+    if (text) segments.push({ time, text });
+  }
+
+  if (segments.length) return segments;
+  return lines.map((line) => line.trim()).filter(Boolean).map((text, index) => ({
+    time: `${String(Math.floor(index / 60)).padStart(2, "0")}:${String(index % 60).padStart(2, "0")}`,
+    text,
+  }));
+}
+
+const sampleTranscripts: Record<string, TranscriptSegment[]> = {
+  P17: [
+    { time: "14:03", text: "I usually discover things through people first. If somebody I know is already using it, it gives me a reason to pay attention." },
+    { time: "14:21", text: "I'd rather see someone I actually know using it. Otherwise it feels a bit like a brand trying to convince me." },
+    { time: "22:08", text: "I don't want to waste money on something I don't know I'll like. I think the social proof makes that feel safer." },
+    { time: "30:19", text: "When someone tells me they used it and liked it, I don't need the brand to work that hard." },
+    { time: "35:41", text: "I don't think that means I'm never interested in something new. It just means I want somebody else to go first." },
+  ],
+  P09: [
+    { time: "09:42", text: "Usually my friends tell me what is worth trying first." },
+    { time: "12:18", text: "I'll try it once if it looks interesting enough." },
+  ],
+  P12: [
+    { time: "16:13", text: "If someone I know has had it, it feels less like an ad." },
+    { time: "24:11", text: "I need to know why I should leave what already works." },
+  ],
+  P04: [
+    { time: "07:13", text: "I don't really know anyone who buys it." },
+    { time: "19:02", text: "It feels like something made for someone else." },
+  ],
+};
+
+const initialParticipants: Participant[] = [
   { id: "P17", name: "Aarav", city: "Mumbai", age: 28, cut: "Loyalists", profile: "Heavy category user", session: "17 Jun · 14:00" },
   { id: "P09", name: "Maya", city: "Delhi", age: 25, cut: "Flirters", profile: "Occasional explorer", session: "18 Jun · 11:30" },
   { id: "P12", name: "Rehan", city: "Bengaluru", age: 32, cut: "Competitor Users", profile: "High-frequency competitor user", session: "18 Jun · 16:00" },
@@ -140,6 +234,10 @@ const initialClusters: Cluster[] = [
   },
 ];
 
+const initialConnections: Relationship[] = [
+  { id: "r1", from: { kind: "cluster", id: "c1" }, to: { kind: "cluster", id: "c2" }, note: "reduces perceived risk" },
+];
+
 const cutReports: Record<string, CutReport> = {
   Loyalists: {
     title: "Loyalists",
@@ -193,6 +291,8 @@ const cutReports: Record<string, CutReport> = {
 };
 
 function App() {
+  const [savedWorkspace] = useState(readSavedWorkspace);
+  const [participants, setParticipants] = useState<Participant[]>(savedWorkspace.participants ?? initialParticipants);
   const [phase, setPhase] = useState<Phase>("Observation");
   const [selectedParticipantId, setSelectedParticipantId] = useState("P17");
   const [selectedCut, setSelectedCut] = useState("Loyalists");
@@ -201,23 +301,51 @@ function App() {
   const [selectedTranscript, setSelectedTranscript] = useState("");
   const [observationNote, setObservationNote] = useState("");
   const [observationCode, setObservationCode] = useState("");
-  const [playing, setPlaying] = useState(false);
-  const [currentTime, setCurrentTime] = useState(16);
-  const [observations, setObservations] = useState<Observation[]>(initialObservations);
-  const [clusters, setClusters] = useState<Cluster[]>(initialClusters);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [observations, setObservations] = useState<Observation[]>(savedWorkspace.observations ?? initialObservations);
+  const [clusters, setClusters] = useState<Cluster[]>(savedWorkspace.clusters ?? initialClusters);
+  const [connections, setConnections] = useState<Relationship[]>(savedWorkspace.connections ?? initialConnections);
+  const [transcripts, setTranscripts] = useState<Record<string, TranscriptSegment[]>>(savedWorkspace.transcripts ?? sampleTranscripts);
   const [selectedObsIds, setSelectedObsIds] = useState<string[]>([]);
   const [selectedClusterId, setSelectedClusterId] = useState<string | null>("c1");
   const [searchOpen, setSearchOpen] = useState(false);
   const [search, setSearch] = useState("");
-  const [toplineBlocks, setToplineBlocks] = useState<string[]>(["c1"]);
+  const [showSettings, setShowSettings] = useState(false);
+  const [showParticipantComposer, setShowParticipantComposer] = useState(false);
+  const backupInputRef = useRef<HTMLInputElement>(null);
+  const [toplineBlocks, setToplineBlocks] = useState<string[]>(savedWorkspace.toplineBlocks ?? ["c1"]);
+  const [toplineTitle, setToplineTitle] = useState(savedWorkspace.toplineTitle ?? "The role of social proof in trial");
+  const [toplineBody, setToplineBody] = useState(savedWorkspace.toplineBody ?? `The role of social proof is especially clear in the moments where participants are weighing risk against novelty.
+
+What matters is not simply that people hear from others. It is that another person's lived experience makes an unfamiliar choice feel less uncertain.
+
+The implication is that...`);
 
 
   const [newToplineText, setNewToplineText] = useState(
-    "The category is not discovered in isolation. Familiarity, social proof and the lived experience of other people make unfamiliar choices feel safer—and more credible."
+    savedWorkspace.toplineText ?? "The category is not discovered in isolation. Familiarity, social proof and the lived experience of other people make unfamiliar choices feel safer—and more credible."
   );
 
+  useEffect(() => {
+    try {
+      localStorage.setItem(WORKSPACE_STORAGE_KEY, JSON.stringify({
+        participants,
+        observations,
+        clusters,
+        connections,
+        transcripts,
+        toplineBlocks,
+        toplineText: newToplineText,
+        toplineTitle,
+        toplineBody,
+      } satisfies SavedWorkspace));
+    } catch {
+      // Keep the app usable when browser storage is unavailable or full.
+    }
+  }, [participants, observations, clusters, connections, transcripts, toplineBlocks, newToplineText, toplineTitle, toplineBody]);
+
   const selectedParticipant = participants.find((p) => p.id === selectedParticipantId)!;
-  const cutReport = cutReports[selectedCut];
+  const cutReport = cutReports[selectedCut] ?? cutReports.Loyalists;
 
   const currentObservations = observations.filter((o) => o.participantId === selectedParticipant.id);
   const selectedCluster = clusters.find((c) => c.id === selectedClusterId) ?? null;
@@ -230,12 +358,94 @@ function App() {
       ...observations.filter((o) => `${o.code} ${o.note} ${o.quote}`.toLowerCase().includes(q)).map((o) => `Observation · ${o.code}`),
       ...clusters.filter((c) => `${c.title} ${c.thought}`.toLowerCase().includes(q)).map((c) => `Cluster · ${c.title}`),
     ];
-  }, [search, observations, clusters]);
+  }, [search, participants, observations, clusters]);
 
   const handleTranscriptSelect = (quote: string, time: number) => {
     setSelectedTranscript(quote);
     setCurrentTime(time);
     setShowObservationComposer(true);
+  };
+
+  const importTranscript = (contents: string) => {
+    const segments = parseTranscriptFile(contents);
+    if (segments.length) {
+      setTranscripts((previous) => ({ ...previous, [selectedParticipant.id]: segments }));
+      setShowCutReport(false);
+    } else {
+      window.alert("No transcript text was found in that file. Please choose a non-empty TXT, SRT, VTT, or CSV file.");
+    }
+  };
+
+  const addParticipant = (details: { name: string; city: string; age: number | null; cut: string }) => {
+    const participant: Participant = {
+      ...details,
+      id: `P${Date.now().toString().slice(-5)}`,
+      profile: "Research participant",
+      session: "Session not set",
+    };
+    setParticipants((previous) => [...previous, participant]);
+    setSelectedParticipantId(participant.id);
+    setSelectedCut(details.cut);
+    setShowCutReport(false);
+    setShowParticipantComposer(false);
+  };
+
+  const downloadWorkspaceBackup = () => downloadTextFile("sweetleaf-workspace-backup.json", JSON.stringify({
+    participants, observations, clusters, connections, transcripts, toplineBlocks, toplineText: newToplineText, toplineTitle, toplineBody,
+  }, null, 2), "application/json");
+
+  const restoreWorkspaceBackup = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    try {
+      const backup = JSON.parse(await file.text()) as SavedWorkspace;
+      if (!Array.isArray(backup.participants) || !Array.isArray(backup.observations) || !Array.isArray(backup.clusters)) {
+        throw new Error("This file is missing participant, observation, or cluster data.");
+      }
+      setParticipants(backup.participants);
+      setObservations(backup.observations);
+      setClusters(backup.clusters);
+      setConnections(backup.connections ?? []);
+      setTranscripts(backup.transcripts ?? {});
+      setToplineBlocks(backup.toplineBlocks ?? []);
+      setNewToplineText(backup.toplineText ?? "");
+      setToplineTitle(backup.toplineTitle ?? "Research topline");
+      setToplineBody(backup.toplineBody ?? "");
+      setSelectedParticipantId(backup.participants[0]?.id ?? "");
+      setShowCutReport(false);
+      setShowSettings(false);
+    } catch (error) {
+      window.alert(error instanceof Error ? `Backup could not be restored: ${error.message}` : "Backup could not be restored.");
+    } finally {
+      event.target.value = "";
+    }
+  };
+
+  const openSearchResult = (item: string) => {
+    const [kind, value] = item.split(" · ");
+    if (kind === "Participant") {
+      const participant = participants.find((entry) => entry.name === value);
+      if (participant) {
+        setSelectedParticipantId(participant.id);
+        setShowCutReport(false);
+        setPhase("Observation");
+      }
+    } else if (kind === "Observation") {
+      const observation = observations.find((entry) => entry.code === value);
+      if (observation) {
+        setSelectedParticipantId(observation.participantId);
+        setShowCutReport(false);
+        setPhase("Observation");
+      }
+    } else if (kind === "Cluster") {
+      const cluster = clusters.find((entry) => entry.title === value);
+      if (cluster) {
+        setSelectedClusterId(cluster.id);
+        setPhase("Inference");
+      }
+    }
+    setSearchOpen(false);
+    setSearch("");
   };
 
   const saveObservation = () => {
@@ -246,7 +456,7 @@ function App() {
       code: observationCode.trim() || "Unlabelled",
       note: observationNote.trim(),
       quote: selectedTranscript || "Selected transcript excerpt",
-      time: `${Math.floor(currentTime).toString().padStart(2, "0")}:24`,
+      time: formatMinutesAsTime(currentTime),
       duration: 18,
       x: 130 + (observations.length % 3) * 180,
       y: 110 + (observations.length % 4) * 105,
@@ -294,7 +504,7 @@ function App() {
         </div>
         <div className="topbar-actions">
           <button className="icon-btn" onClick={() => setSearchOpen(!searchOpen)} title="Search"><Search size={18} /></button>
-          <button className="icon-btn" title="Settings"><Settings2 size={18} /></button>
+          <button className="icon-btn" onClick={() => setShowSettings(true)} title="Settings"><Settings2 size={18} /></button>
           <div className="avatar">AB</div>
         </div>
       </header>
@@ -308,24 +518,50 @@ function App() {
           </div>
           {search && (
             <div className="search-results">
-              {allSearchResults.length ? allSearchResults.map((item) => <div className="search-result" key={item}>{item}</div>) : <div className="search-empty">No matches.</div>}
+              {allSearchResults.length ? allSearchResults.map((item) => <button className="search-result" key={item} onClick={() => openSearchResult(item)}>{item}</button>) : <div className="search-empty">No matches.</div>}
             </div>
           )}
         </div>
       )}
+
+      {showSettings && (
+        <div className="modal-backdrop" onClick={() => setShowSettings(false)}>
+          <section className="observation-modal settings-modal" onClick={(event) => event.stopPropagation()}>
+            <div className="modal-head">
+              <div><div className="eyebrow">Privacy & storage</div><h3>Your work stays in this browser.</h3></div>
+              <button className="icon-btn" onClick={() => setShowSettings(false)} aria-label="Close settings"><X size={17} /></button>
+            </div>
+            <p className="settings-copy">This version saves imported transcripts, observations, clusters, and your topline on this device only. It does not upload your research data or share it with a team.</p>
+            <input ref={backupInputRef} type="file" accept=".json,application/json" onChange={restoreWorkspaceBackup} hidden />
+            <div className="modal-actions">
+              <button className="secondary-button" onClick={() => setShowSettings(false)}>Done</button>
+              <button className="secondary-button" onClick={downloadWorkspaceBackup}>Download backup</button>
+              <button className="secondary-button" onClick={() => backupInputRef.current?.click()}>Restore backup</button>
+              <button className="secondary-button" onClick={() => {
+                if (window.confirm("Delete saved Sweetleaf work from this browser and restore the sample study?")) {
+                  localStorage.removeItem(WORKSPACE_STORAGE_KEY);
+                  window.location.reload();
+                }
+              }}>Restore sample study</button>
+            </div>
+          </section>
+        </div>
+      )}
+
+      {showParticipantComposer && <NewParticipantDialog onCreate={addParticipant} onClose={() => setShowParticipantComposer(false)} />}
 
       <main className="main-stage">
         <div className="study-banner">
           <div>
             <div className="eyebrow">Study</div>
             <h1>New Beverage Category</h1>
-            <p>Understand how consumers discover, evaluate and adopt emerging beverage brands.</p>
+            <p>Example study workspace. Add participants and import transcripts to work with your own research.</p>
           </div>
           <div className="study-meta">
-            <span>24 participants</span>
+            <span>{participants.length} participants</span>
             <span>4 cuts</span>
-            <span>Fieldwork · June 2026</span>
-            <span className="local-pill">Local project</span>
+            <span>Example study</span>
+            <span className="local-pill">Saved in this browser</span>
           </div>
         </div>
 
@@ -340,19 +576,20 @@ function App() {
         {phase === "Observation" && (
           <ObservationPhase
             participants={participants}
+            onAddParticipant={() => setShowParticipantComposer(true)}
             participant={selectedParticipant}
             selectedParticipantId={selectedParticipantId}
             setSelectedParticipantId={setSelectedParticipantId}
             selectedCut={selectedCut}
             setSelectedCut={setSelectedCut}
             currentObservations={currentObservations}
+            transcript={transcripts[selectedParticipant.id] ?? []}
+            onImportTranscript={importTranscript}
             cutReport={cutReport}
             showCutReport={showCutReport}
             setShowCutReport={setShowCutReport}
             currentTime={currentTime}
             setCurrentTime={setCurrentTime}
-            playing={playing}
-            setPlaying={setPlaying}
             handleTranscriptSelect={handleTranscriptSelect}
             showComposer={showObservationComposer}
             selectedTranscript={selectedTranscript}
@@ -367,8 +604,11 @@ function App() {
 
         {phase === "Inference" && (
           <InferencePhase
+            participants={participants}
             observations={observations}
             clusters={clusters}
+            connections={connections}
+            setConnections={setConnections}
             selectedObsIds={selectedObsIds}
             toggleObs={toggleObs}
             createClusterFromSelection={createClusterFromSelection}
@@ -389,6 +629,11 @@ function App() {
             setToplineBlocks={setToplineBlocks}
             newToplineText={newToplineText}
             setNewToplineText={setNewToplineText}
+            toplineTitle={toplineTitle}
+            setToplineTitle={setToplineTitle}
+            toplineBody={toplineBody}
+            setToplineBody={setToplineBody}
+            setClusters={setClusters}
             removeToplineBlock={(id) => setToplineBlocks((ids) => ids.filter((x) => x !== id))}
           />
         )}
@@ -399,19 +644,20 @@ function App() {
 
 function ObservationPhase(props: {
   participants: Participant[];
+  onAddParticipant: () => void;
   participant: Participant;
   selectedParticipantId: string;
   setSelectedParticipantId: (id: string) => void;
   selectedCut: string;
   setSelectedCut: (cut: string) => void;
   currentObservations: Observation[];
+  transcript: TranscriptSegment[];
+  onImportTranscript: (contents: string) => void;
   cutReport: CutReport;
   showCutReport: boolean;
   setShowCutReport: (v: boolean) => void;
   currentTime: number;
   setCurrentTime: (v: number) => void;
-  playing: boolean;
-  setPlaying: (v: boolean) => void;
   handleTranscriptSelect: (quote: string, time: number) => void;
   showComposer: boolean;
   selectedTranscript: string;
@@ -429,13 +675,13 @@ function ObservationPhase(props: {
     selectedCut,
     setSelectedCut,
     currentObservations,
+    transcript,
+    onImportTranscript,
     cutReport,
     showCutReport,
     setShowCutReport,
     currentTime,
     setCurrentTime,
-    playing,
-    setPlaying,
     handleTranscriptSelect,
     showComposer,
     selectedTranscript,
@@ -452,7 +698,7 @@ function ObservationPhase(props: {
       <aside className="left-panel">
         <div className="panel-section">
           <div className="panel-label">Study</div>
-          <button className={`nav-item ${selectedCut === "All" ? "selected" : ""}`} onClick={() => setSelectedCut("All")}>
+          <button className={`nav-item ${selectedCut === "All" ? "selected" : ""}`} onClick={() => { setSelectedCut("All"); setShowCutReport(false); }}>
             <FolderOpen size={16} /> All participants
           </button>
         </div>
@@ -463,13 +709,14 @@ function ObservationPhase(props: {
             <button key={cut} className={`nav-item ${selectedCut === cut ? "selected" : ""}`} onClick={() => { setSelectedCut(cut); setShowCutReport(true); }}>
               <span className="cut-dot" />
               <span>{cut}</span>
-              <span className="nav-count">{cutReports[cut].count}</span>
+              <span className="nav-count">{props.participants.filter((participant) => participant.cut === cut).length}</span>
             </button>
           ))}
         </div>
 
         <div className="panel-section">
           <div className="panel-label">Participants</div>
+          <button className="nav-item" onClick={props.onAddParticipant}><Plus size={15} /> Add participant</button>
           {props.participants.map((p) => (
             <button key={p.id} className={`participant-item ${selectedParticipantId === p.id ? "selected" : ""}`} onClick={() => { setSelectedParticipantId(p.id); setShowCutReport(false); }}>
               <div className="mini-avatar">{p.name.slice(0, 1)}</div>
@@ -490,49 +737,47 @@ function ObservationPhase(props: {
                 <div className="eyebrow">Participant</div>
                 <h2>{participant.name} <span className="muted">{participant.id}</span></h2>
                 <div className="participant-pills">
-                  <span>{participant.age}</span>
+                  <span>{participant.age ?? "Age not recorded"}</span>
                   <span>{participant.city}</span>
                   <span>{participant.cut}</span>
                   <span>{participant.profile}</span>
                 </div>
               </div>
-              <div className="session-meta"><span>{participant.session}</span><span className="live-dot" /> Local recording</div>
+              <div className="session-meta"><span>{participant.session}</span><span className="live-dot" /> Private browser workspace</div>
             </div>
 
             <div className="evidence-grid">
               <div className="video-card">
                 <div className="video-header">
-                  <span>Interview recording</span>
-                  <span>44:12</span>
+                  <span>Interview media</span>
+                  <span>Not attached</span>
                 </div>
                 <div className="video-surface">
                   <div className="video-grid" />
                   <div className="video-center">
-                    <button className="big-play" onClick={() => setPlaying(!playing)}>
-                      {playing ? <Pause size={24} /> : <CirclePlay size={29} />}
-                    </button>
-                    <span>{playing ? "Playing interview" : "Resume interview"}</span>
+                    <FileText size={30} />
+                    <span>Transcript workspace</span>
+                    <small>Import a transcript to begin capturing evidence.</small>
                   </div>
-                  <div className="video-overlay-title">{participant.name} · Field interview</div>
+                  <div className="video-overlay-title">{participant.name} · No recording attached</div>
                 </div>
                 <div className="timeline-wrap">
                   <div className="timeline-ruler">
                     <span>00:00</span><span>10:00</span><span>20:00</span><span>30:00</span><span>40:00</span>
                   </div>
-                  <input className="timeline-slider" type="range" min="0" max="44" value={currentTime} onChange={(e) => setCurrentTime(Number(e.target.value))} />
+                  <input className="timeline-slider" type="range" min="0" max="44" step="0.01" value={Math.min(44, currentTime)} onChange={(e) => setCurrentTime(Number(e.target.value))} aria-label="Transcript time position" />
                   <div className="timeline-dots">
                     {currentObservations.map((o) => {
-                      const left = Math.min(97, Math.max(2, (parseInt(o.time.split(":")[0], 10) / 44) * 100));
-                      return <button key={o.id} className="timeline-dot" style={{ left: `${left}%` }} title={o.code} onClick={() => setCurrentTime(parseInt(o.time.split(":")[0], 10))} />;
+                      const left = Math.min(97, Math.max(2, (timeToMinutes(o.time) / 44) * 100));
+                      return <button key={o.id} className="timeline-dot" style={{ left: `${left}%` }} title={o.code} onClick={() => setCurrentTime(timeToMinutes(o.time))} />;
                     })}
                     <span className="playhead" style={{ left: `${(currentTime / 44) * 100}%` }} />
                   </div>
                   <div className="video-controls">
                     <div>
-                      <button className="small-control" onClick={() => setPlaying(!playing)}>{playing ? <Pause size={15} /> : <CirclePlay size={15} />}</button>
-                      <span>{String(Math.floor(currentTime)).padStart(2, "0")}:24 / 44:12</span>
+                      <span>{formatMinutesAsTime(currentTime)} · transcript position</span>
                     </div>
-                    <span className="control-caption">{currentObservations.length} observations</span>
+                    <span className="control-caption">{transcript.length} transcript moments</span>
                   </div>
                 </div>
               </div>
@@ -543,15 +788,15 @@ function ObservationPhase(props: {
                     <span className="eyebrow">Transcript</span>
                     <h3>Interview transcript</h3>
                   </div>
-                  <button className="subtle-button"><FileText size={15} /> Export</button>
+                  <button className="subtle-button" onClick={() => downloadTextFile(`${participant.id}-transcript.txt`, transcript.map((line) => `${line.time} ${line.text}`).join("\n"))}><FileText size={15} /> Export</button>
                 </div>
                 <div className="transcript-scroll">
-                  <TranscriptLine time="14:03" text="I usually discover things through people first. If somebody I know is already using it, it gives me a reason to pay attention." active={currentTime >= 13 && currentTime < 16} onClick={() => handleTranscriptSelect("I usually discover things through people first. If somebody I know is already using it, it gives me a reason to pay attention.", 14)} />
-                  <TranscriptLine time="14:21" text="I'd rather see someone I actually know using it. Otherwise it feels a bit like a brand trying to convince me." active={currentTime >= 16 && currentTime < 20} onClick={() => handleTranscriptSelect("I'd rather see someone I actually know using it. Otherwise it feels a bit like a brand trying to convince me.", 17)} />
-                  <TranscriptLine time="22:08" text="I don't want to waste money on something I don't know I'll like. I think the social proof makes that feel safer." active={currentTime >= 22 && currentTime < 25} onClick={() => handleTranscriptSelect("I don't want to waste money on something I don't know I'll like. I think the social proof makes that feel safer.", 23)} />
-                  <TranscriptLine time="30:19" text="When someone tells me they used it and liked it, I don't need the brand to work that hard." active={currentTime >= 30 && currentTime < 33} onClick={() => handleTranscriptSelect("When someone tells me they used it and liked it, I don't need the brand to work that hard.", 31)} />
-                  <TranscriptLine time="35:41" text="I don't think that means I'm never interested in something new. It just means I want somebody else to go first." active={currentTime >= 35 && currentTime < 39} onClick={() => handleTranscriptSelect("I don't think that means I'm never interested in something new. It just means I want somebody else to go first.", 36)} />
+                  {transcript.map((line) => {
+                    const minute = timeToMinutes(line.time);
+                    return <TranscriptLine key={`${line.time}-${line.text}`} time={line.time} text={line.text} active={Math.abs(currentTime - minute) < 0.1} onClick={() => handleTranscriptSelect(line.text, minute)} />;
+                  })}
                 </div>
+                <TranscriptImport participantId={participant.id} onImport={onImportTranscript} />
               </div>
             </div>
 
@@ -561,7 +806,14 @@ function ObservationPhase(props: {
                   <span className="eyebrow">Your observations</span>
                   <h3>{currentObservations.length} captured moments</h3>
                 </div>
-                <button className="subtle-button" onClick={() => setShowComposer(true)}><Plus size={15} /> New observation</button>
+                <div className="strip-actions">
+                  <button className="subtle-button" onClick={() => {
+                    const rows = [["participant", "time", "code", "note", "quote"], ...currentObservations.map((observation) => [observation.participantId, observation.time, observation.code, observation.note, observation.quote])];
+                    const csv = rows.map((row) => row.map((value) => `"${value.replace(/"/g, "\"\"")}"`).join(",")).join("\n");
+                    downloadTextFile(`${participant.id}-observations.csv`, csv, "text/csv");
+                  }}><FileText size={14} /> Export observations</button>
+                  <button className="subtle-button" onClick={() => setShowComposer(true)}><Plus size={15} /> New observation</button>
+                </div>
               </div>
               <div className="observation-mini-grid">
                 {currentObservations.map((o) => (
@@ -585,7 +837,7 @@ function ObservationPhase(props: {
                     <button className="icon-btn" onClick={() => setShowComposer(false)}><X size={17} /></button>
                   </div>
                   <div className="selected-evidence">
-                    <div className="evidence-label"><StickyNote size={14} /> Selected evidence · {currentTime.toString().padStart(2, "0")}:24</div>
+                    <div className="evidence-label"><StickyNote size={14} /> Selected evidence · {formatMinutesAsTime(currentTime)}</div>
                     <p>{selectedTranscript || "Select a transcript passage to anchor this observation."}</p>
                   </div>
                   <label>
@@ -608,7 +860,7 @@ function ObservationPhase(props: {
           <CutReportPanel
             cutReport={cutReport}
             onBackToParticipant={() => setShowCutReport(false)}
-            onExcerpt={(quote, time) => handleTranscriptSelect(quote, parseInt(time.split(":")[0], 10))}
+            onExcerpt={(quote, time) => handleTranscriptSelect(quote, timeToMinutes(time))}
           />
         )}
       </section>
@@ -625,6 +877,62 @@ function TranscriptLine({ time, text, active, onClick }: { time: string; text: s
   );
 }
 
+function NewParticipantDialog({ onCreate, onClose }: {
+  onCreate: (details: { name: string; city: string; age: number | null; cut: string }) => void;
+  onClose: () => void;
+}) {
+  const [name, setName] = useState("");
+  const [city, setCity] = useState("");
+  const [age, setAge] = useState("");
+  const [cut, setCut] = useState(Object.keys(cutReports)[0]);
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <form className="observation-modal" onClick={(event) => event.stopPropagation()} onSubmit={(event) => {
+        event.preventDefault();
+        if (name.trim()) onCreate({ name: name.trim(), city: city.trim() || "Not specified", age: age ? Number(age) : null, cut });
+      }}>
+        <div className="modal-head">
+          <div><div className="eyebrow">Study participants</div><h3>Add a participant.</h3></div>
+          <button type="button" className="icon-btn" onClick={onClose} aria-label="Close"><X size={17} /></button>
+        </div>
+        <label><span>Name or pseudonym</span><input autoFocus required value={name} onChange={(event) => setName(event.target.value)} placeholder="e.g. Participant 05" /></label>
+        <label><span>City (optional)</span><input value={city} onChange={(event) => setCity(event.target.value)} placeholder="e.g. Mumbai" /></label>
+        <label><span>Age (optional)</span><input type="number" min="1" max="120" value={age} onChange={(event) => setAge(event.target.value)} placeholder="e.g. 28" /></label>
+        <label><span>Participant cut</span><select value={cut} onChange={(event) => setCut(event.target.value)}>{Object.keys(cutReports).map((label) => <option key={label}>{label}</option>)}</select></label>
+        <div className="modal-actions">
+          <button type="button" className="secondary-button" onClick={onClose}>Cancel</button>
+          <button className="primary-button" type="submit" disabled={!name.trim()}>Add participant</button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+function TranscriptImport({ participantId, onImport }: { participantId: string; onImport: (contents: string) => void }) {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const handleFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    try {
+      onImport(await file.text());
+    } catch {
+      window.alert("This transcript file could not be read. Please try a plain text, SRT, VTT, or CSV file.");
+    } finally {
+      event.target.value = "";
+    }
+  };
+
+  return (
+    <div className="transcript-import">
+      <input ref={inputRef} type="file" accept=".txt,.srt,.vtt,.csv,text/plain,text/csv" onChange={handleFile} hidden />
+      <button className="subtle-button" onClick={() => inputRef.current?.click()}><Plus size={14} /> Import transcript</button>
+      <span>For {participantId} · TXT, SRT, VTT, or CSV</span>
+    </div>
+  );
+}
+
 function CutReportPanel({ cutReport, onBackToParticipant, onExcerpt }: { cutReport: CutReport; onBackToParticipant: () => void; onExcerpt: (q: string, t: string) => void }) {
   return (
     <div className="cut-report">
@@ -633,9 +941,9 @@ function CutReportPanel({ cutReport, onBackToParticipant, onExcerpt }: { cutRepo
         <div>
           <div className="eyebrow">Cumulative cut view</div>
           <h2>{cutReport.title}</h2>
-          <p>{cutReport.count} participants · AI-assisted synthesis from local transcripts</p>
+          <p>Example synthesis for demonstration · replace with your study data</p>
         </div>
-        <span className="ai-badge"><Sparkles size={14} /> Research assist</span>
+        <span className="ai-badge"><Sparkles size={14} /> Illustrative sample</span>
       </div>
 
       <div className="report-grid">
@@ -681,8 +989,11 @@ function ReportSection({ title, children, wide = false }: { title: string; child
 }
 
 function InferencePhase(props: {
+  participants: Participant[];
   observations: Observation[];
   clusters: Cluster[];
+  connections: Relationship[];
+  setConnections: Dispatch<SetStateAction<Relationship[]>>;
   selectedObsIds: string[];
   toggleObs: (id: string) => void;
   createClusterFromSelection: () => void;
@@ -695,8 +1006,11 @@ function InferencePhase(props: {
   setSelectedCut: (s: string) => void;
 }) {
   const {
+    participants,
     observations,
     clusters,
+    connections,
+    setConnections,
     selectedObsIds,
     toggleObs,
     createClusterFromSelection,
@@ -724,18 +1038,10 @@ function InferencePhase(props: {
   const [lassoMode, setLassoMode] = useState(false);
   const [connectionMode, setConnectionMode] = useState(false);
   const [connectionStart, setConnectionStart] = useState<{ kind: "obs" | "cluster"; id: string } | null>(null);
-  const [connections, setConnections] = useState<Array<{
-    id: string;
-    from: { kind: "obs" | "cluster"; id: string };
-    to: { kind: "obs" | "cluster"; id: string };
-    note: string;
-  }>>([
-    { id: "r1", from: { kind: "cluster", id: "c1" }, to: { kind: "cluster", id: "c2" }, note: "reduces perceived risk" },
-  ]);
 
   const [editingRelationship, setEditingRelationship] = useState<string | null>(null);
 
-  const getCanvasPoint = (e: React.MouseEvent) => {
+  const getCanvasPoint = (e: React.PointerEvent) => {
     const rect = canvasRef.current?.getBoundingClientRect();
     if (!rect) return { x: 0, y: 0 };
     return {
@@ -744,7 +1050,7 @@ function InferencePhase(props: {
     };
   };
 
-  const beginDrag = (kind: "obs" | "cluster", id: string, e: React.MouseEvent) => {
+  const beginDrag = (kind: "obs" | "cluster", id: string, e: React.PointerEvent) => {
     if (lassoMode || connectionMode) return;
     const { x, y } = getCanvasPoint(e);
     const item = kind === "obs"
@@ -753,6 +1059,7 @@ function InferencePhase(props: {
 
     if (!item) return;
 
+    canvasRef.current?.setPointerCapture(e.pointerId);
     setDragState({
       kind,
       id,
@@ -763,7 +1070,7 @@ function InferencePhase(props: {
     e.stopPropagation();
   };
 
-  const moveDrag = (e: React.MouseEvent) => {
+  const moveDrag = (e: React.PointerEvent) => {
     if (!dragState) return;
     const { x: canvasX, y: canvasY } = getCanvasPoint(e);
     const x = Math.max(10, canvasX - dragState.offsetX);
@@ -782,14 +1089,15 @@ function InferencePhase(props: {
 
   const endDrag = () => setDragState(null);
 
-  const startLasso = (e: React.MouseEvent) => {
+  const startLasso = (e: React.PointerEvent) => {
     if (!lassoMode || connectionMode) return;
     const p = getCanvasPoint(e);
+    canvasRef.current?.setPointerCapture(e.pointerId);
     setLassoStart(p);
     setLassoEnd(p);
   };
 
-  const moveLasso = (e: React.MouseEvent) => {
+  const moveLasso = (e: React.PointerEvent) => {
     if (!lassoStart) return;
     setLassoEnd(getCanvasPoint(e));
   };
@@ -821,7 +1129,7 @@ function InferencePhase(props: {
     setLassoMode(false);
   };
 
-  const clickConnectionTarget = (kind: "obs" | "cluster", id: string, e: React.MouseEvent) => {
+  const clickConnectionTarget = (kind: "obs" | "cluster", id: string, e: React.MouseEvent | React.PointerEvent) => {
     if (!connectionMode) return;
     e.stopPropagation();
 
@@ -895,24 +1203,25 @@ function InferencePhase(props: {
         <div
           ref={canvasRef}
           className={`canvas ${lassoMode ? "lasso-active" : ""} ${connectionMode ? "connection-active" : ""}`}
-          onMouseDown={startLasso}
-          onMouseMove={(e) => {
+          onPointerDown={startLasso}
+          onPointerMove={(e) => {
             moveDrag(e);
             moveLasso(e);
           }}
-          onMouseUp={() => {
+          onPointerUp={() => {
             endDrag();
             endLasso();
           }}
+          onPointerCancel={() => { endDrag(); endLasso(); }}
         >
           <div className="canvas-grid" />
 
           {showCuts && (
             <>
-              <div className="cut-zone zone-one"><span>Loyalists</span><small>8 participants</small></div>
-              <div className="cut-zone zone-two"><span>Flirters</span><small>6 participants</small></div>
-              <div className="cut-zone zone-three"><span>Competitor Users</span><small>5 participants</small></div>
-              <div className="cut-zone zone-four"><span>Non-users</span><small>5 participants</small></div>
+              <div className="cut-zone zone-one"><span>Loyalists</span><small>{participants.filter((participant) => participant.cut === "Loyalists").length} participants</small></div>
+              <div className="cut-zone zone-two"><span>Flirters</span><small>{participants.filter((participant) => participant.cut === "Flirters").length} participants</small></div>
+              <div className="cut-zone zone-three"><span>Competitor Users</span><small>{participants.filter((participant) => participant.cut === "Competitor Users").length} participants</small></div>
+              <div className="cut-zone zone-four"><span>Non-users</span><small>{participants.filter((participant) => participant.cut === "Non-users").length} participants</small></div>
             </>
           )}
 
@@ -958,7 +1267,7 @@ function InferencePhase(props: {
                   toggleObs(o.id);
                 }
               }}
-              onMouseDown={(e) => beginDrag("obs", o.id, e)}
+              onPointerDown={(e) => beginDrag("obs", o.id, e)}
             >
               <div className="canvas-card-handle">
                 <GripVertical size={14} />
@@ -983,7 +1292,7 @@ function InferencePhase(props: {
                   setSelectedClusterId(c.id);
                 }
               }}
-              onMouseDown={(e) => beginDrag("cluster", c.id, e)}
+              onPointerDown={(e) => beginDrag("cluster", c.id, e)}
             >
               <div className="cluster-head">
                 <span>Cluster</span>
@@ -992,12 +1301,12 @@ function InferencePhase(props: {
               <input
                 value={c.title}
                 onChange={(e) => setClusters((prev) => prev.map((x) => x.id === c.id ? { ...x, title: e.target.value } : x))}
-                onMouseDown={(e) => e.stopPropagation()}
+                onPointerDown={(e) => e.stopPropagation()}
               />
               <textarea
                 value={c.thought}
                 onChange={(e) => setClusters((prev) => prev.map((x) => x.id === c.id ? { ...x, thought: e.target.value } : x))}
-                onMouseDown={(e) => e.stopPropagation()}
+                onPointerDown={(e) => e.stopPropagation()}
               />
               <div className="cluster-foot">
                 <span>{c.observationIds.length} observations</span>
@@ -1038,7 +1347,7 @@ function InferencePhase(props: {
             <div className="lens-list">
               {Object.keys(cutReports).map((cut) => (
                 <button key={cut} onClick={() => setSelectedCut(cut)} className={selectedCut === cut ? "active" : ""}>
-                  {cut}<span>{cutReports[cut].count}</span>
+                  {cut}<span>{participants.filter((participant) => participant.cut === cut).length}</span>
                 </button>
               ))}
             </div>
@@ -1078,13 +1387,18 @@ function InferencePhase(props: {
 
 function ToplinePhase(props: {
   clusters: Cluster[];
+  setClusters: Dispatch<SetStateAction<Cluster[]>>;
   toplineBlocks: string[];
   setToplineBlocks: Dispatch<SetStateAction<string[]>>;
   newToplineText: string;
   setNewToplineText: (s: string) => void;
+  toplineTitle: string;
+  setToplineTitle: (s: string) => void;
+  toplineBody: string;
+  setToplineBody: (s: string) => void;
   removeToplineBlock: (id: string) => void;
 }) {
-  const { clusters, toplineBlocks, setToplineBlocks, newToplineText, setNewToplineText, removeToplineBlock } = props;
+  const { clusters, setClusters, toplineBlocks, setToplineBlocks, newToplineText, setNewToplineText, toplineTitle, setToplineTitle, toplineBody, setToplineBody, removeToplineBlock } = props;
   const [draggedClusterId, setDraggedClusterId] = useState<string | null>(null);
 
   const insertCluster = (id: string) => {
@@ -1114,7 +1428,7 @@ function ToplinePhase(props: {
           onDragOver={(e) => e.preventDefault()}
           onDrop={handleDrop}
         >
-          <input className="topline-title" defaultValue="The role of social proof in trial" />
+          <input className="topline-title" value={toplineTitle} onChange={(event) => setToplineTitle(event.target.value)} aria-label="Topline title" />
           <textarea
             className="topline-intro"
             value={newToplineText}
@@ -1133,7 +1447,7 @@ function ToplinePhase(props: {
                   </button>
                 </div>
                 <h3>{c.title}</h3>
-                <textarea defaultValue={c.thought} />
+                <textarea value={c.thought} onChange={(event) => setClusters((previous) => previous.map((cluster) => cluster.id === c.id ? { ...cluster, thought: event.target.value } : cluster))} />
                 <div className="research-block-source">
                   <Link2 size={13} /> Linked to Inference cluster · {c.observationIds.length} observations
                 </div>
@@ -1144,11 +1458,8 @@ function ToplinePhase(props: {
           <textarea
             className="prose-area"
             placeholder="Continue writing here…"
-            defaultValue={`The role of social proof is especially clear in the moments where participants are weighing risk against novelty.
-
-What matters is not simply that people hear from others. It is that another person's lived experience makes an unfamiliar choice feel less uncertain.
-
-The implication is that...`}
+            value={toplineBody}
+            onChange={(event) => setToplineBody(event.target.value)}
           />
 
           <div className={`topline-drop-zone ${draggedClusterId ? "ready" : ""}`}>
@@ -1157,8 +1468,11 @@ The implication is that...`}
           </div>
 
           <div className="topline-actions">
-            <button><Plus size={15} /> Add section</button>
-            <button><FileText size={15} /> Export draft</button>
+            <button onClick={() => setToplineBody(`${toplineBody}\n\n## New section\n\nWrite your findings here…`)}><Plus size={15} /> Add section</button>
+            <button onClick={() => downloadTextFile("sweetleaf-topline.md", `# ${toplineTitle}\n\n${newToplineText}\n\n${toplineBlocks.map((id) => {
+              const cluster = clusters.find((item) => item.id === id);
+              return cluster ? `## ${cluster.title}\n\n${cluster.thought}` : "";
+            }).filter(Boolean).join("\n\n")}\n\n${toplineBody}`, "text/markdown")}><FileText size={15} /> Export draft</button>
           </div>
         </div>
       </div>

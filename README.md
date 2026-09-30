@@ -1,101 +1,51 @@
 # Sweetleaf Suite (down )
 
-A qualitative research workspace for making sense of interviews, observations, and emerging themes.
+A private, browser-based workspace for organizing qualitative interview transcripts, observations, themes, and topline findings.
 
 [![Open app](https://img.shields.io/badge/Open-App-27493f?style=for-the-badge)](https://theratbatbose.github.io/Sweetleaf-insights-suite/)
 
-Sweetleaf Suite helps qualitative researchers move from raw interview evidence to clear themes, participant cuts, and research narratives without losing context. It is designed for the messy middle of research work: capturing what was noticed, connecting observations, comparing patterns across segments, and turning evidence into a credible topline.
+> **Publishing status:** The public link will work after GitHub Pages is enabled for this repository. Open [Pages settings](https://github.com/theratbatbose/Sweetleaf-insights-suite/settings/pages), select **GitHub Actions** under “Build and deployment,” and save. GitHub currently rejects the deploy workflow because Pages has not been enabled yet.
 
-## Why researchers use it
+## Getting started
 
-- Review participant evidence in one place
-- Log observations as they emerge from transcripts or recordings
-- Group related moments into clusters
-- Compare patterns across participant cuts
-- Build a narrative story from synthesized insights
-- Keep the work grounded in direct evidence rather than abstract summaries
+The app opens with an example study. Use it to explore the workflow, or replace/add participants and bring in your own transcripts.
 
-## What the tool includes
+1. Select **Add participant** in the Participants list and enter a name or pseudonym. City, age, and a participant cut are optional or editable.
+2. Open that participant and choose **Import transcript**. Supported formats are TXT, SRT, VTT, and simple timestamped CSV. Timestamped lines work best, for example `00:12 A participant quote` or `00:14:21 A participant quote`.
+3. Select a transcript passage to attach it as evidence, enter an observation and optional code, then choose **Log observation**.
+4. Open **Inference** to select observations and group them into editable clusters. Drag cards to organize the canvas, or connect related cards.
+5. Open **Topline** to edit the narrative, add research blocks, and download a Markdown draft.
+6. Open **Settings → Download backup** regularly to keep a portable copy of your work. Use **Restore backup** to bring that JSON file back into the app.
 
-- Observation capture with transcript-linked evidence
-- Participant and cut views
-- Cluster inference canvas for organizing meaning
-- Relationship mapping between observations and clusters
-- Cut-level summaries and recurring themes
-- Topline writer for turning synthesis into a clear narrative
+Transcript and observation exports are available in the participant view. Search can navigate to matching participants, observations, and clusters.
 
-## Who this is for
+## Privacy and saving
 
-This is especially useful for:
+Your work is saved automatically in the current browser on the current device. The app does not upload transcripts or notes to a server. Clearing browser data or switching browsers/devices can remove or hide local work, so download a backup before doing so. Imported transcript files are read in the browser and are not retained as uploaded files.
 
-- Qualitative researchers
-- UX researchers and insights teams
-- Brand and consumer researchers
-- Research operations and synthesis leads
-- Anyone working with interviews, diaries, or field notes
+This version does **not** support shared team accounts or synchronized online storage. Do not treat the demo as a substitute for your organization’s approved secure research data system.
 
-## Open the app
+## What is a demo, and what is not implemented yet?
 
-Use the live app here:
+The preloaded participants, transcripts, cut summaries, and findings are illustrative sample content—not real research and not AI-generated analysis. The example study has no interview recordings attached, so media playback is not available. This release supports manual transcript review and researcher-led synthesis; it does not currently provide automatic transcription, AI synthesis, team collaboration, or cloud backup.
 
-https://theratbatbose.github.io/Sweetleaf-insights-suite/
+## Run on your computer
 
-## Run locally
-
-If you want to run the project on your own machine in VS Code:
-
-1. Install Node.js 18+
-2. Open this folder in VS Code
-3. Open the terminal
-4. Run:
+Install Node.js 18 or newer, open this project folder in a terminal, then run:
 
 ```bash
 npm install
 npm run dev
 ```
 
-5. Open the local URL Vite prints, usually:
+Open the local address printed by Vite, usually `http://localhost:5173/`.
 
-```text
-http://localhost:5173
-```
-
-## Production build
+To check the production build:
 
 ```bash
 npm run build
 ```
 
-The build output is generated in the `dist/` folder.
+## For maintainers
 
-## Prototype status
-
-This is a frontend-first prototype built for research workflow exploration. The current version uses realistic in-browser mock data to simulate how a researcher might work through interviews, synthesis, and narrative writing.
-
-The architecture is organized around:
-
-- Projects
-- Cuts
-- Participants
-- Recordings
-- Transcripts
-- Observations
-- Clusters
-- Relationships
-- Topline blocks
-
-This foundation is ready to evolve into a fuller tool with real transcription, local data storage, and AI-assisted synthesis.
-
-## Recommended next steps
-
-Future enhancements could include:
-
-- Local-first persistence with SQLite or IndexedDB
-- Transcription and auto-tagging
-- OpenAI or local-model support for synthesis assistance
-- Exporting findings to slide decks or research reports
-- Team collaboration and shared research boards
-
-## Deploy
-
-This frontend is configured for GitHub Pages and can also be deployed to other static hosting providers such as Netlify, Vercel, or Cloudflare Pages.
+The app is built with React, TypeScript, and Vite. GitHub Actions builds the app and deploys it to GitHub Pages when Pages is enabled for the repository. The Vite base path is configured for the repository URL.
