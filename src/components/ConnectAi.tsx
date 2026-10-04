@@ -9,7 +9,7 @@ const LOCAL_PROVIDERS = new Set(["ollama", "openai-compatible"]);
 const PROVIDER_NOTES: Record<string, string> = {
   anthropic: "Claude models via an API key from the Anthropic Console. (Claude Pro/Max chat subscriptions can't be used by other apps.)",
   openai: "GPT models via an API key from the OpenAI Platform. (A ChatGPT Plus subscription is separate and does not include API access.)",
-  gemini: "Gemini models via a free or paid key from Google AI Studio.",
+  gemini: "Gemini models via a key from Google AI Studio. Use a key with billing enabled for client work: on the free tier Google may use your prompts to improve its products.",
   openrouter: "One key gives access to Claude, GPT, Gemini, Llama and more. Pay-as-you-go.",
   ollama: "Runs open models entirely on this computer. Nothing leaves the machine. Needs a reasonably powerful PC.",
   "openai-compatible": "Any server that speaks the OpenAI API: LM Studio, vLLM, Groq, Together, or your organisation's gateway.",
