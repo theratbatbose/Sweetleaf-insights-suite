@@ -35,7 +35,7 @@ function newest(dir) {
 
 const lockFile = path.join(root, "node_modules", ".package-lock.json");
 if (!existsSync(lockFile) || statSync(path.join(root, "package.json")).mtimeMs > statSync(lockFile).mtimeMs) {
-  run(["install", "--no-audit", "--no-fund"], "Installing Sweetleaf (first run only, needs internet)");
+  run(["install", "--no-audit", "--no-fund", "--loglevel=error"], "Installing Sweetleaf (first run only, needs internet, takes a few minutes)");
 }
 
 const server = path.join(root, "build", "server.mjs");
