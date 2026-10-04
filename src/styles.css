@@ -473,3 +473,11 @@ blockquote { margin: 6px 0 0; padding-left: 9px; border-left: 3px solid #c9d8cc;
 /* Let long writing grow with its content instead of scrolling inside a box (Chrome/Edge). */
 .topline-intro, .prose-area, .research-block textarea, .doc-text, .across-cell textarea { field-sizing: content; }
 .doc-text { max-height: 480px; }
+
+/* bulk import */
+.bulk-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+.bulk-table th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: #857e70; padding: 6px 4px; border-bottom: 1px solid var(--line); }
+.bulk-table td { padding: 5px 4px; border-bottom: 1px solid var(--line-2); vertical-align: middle; }
+.bulk-table select { width: 100%; max-width: 360px; }
+.bulk-file { display: flex; align-items: center; gap: 6px; word-break: break-all; }
+.bulk-progress { display: flex; align-items: center; gap: 12px; flex: 1; font-size: 13px; }

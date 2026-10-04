@@ -1,12 +1,12 @@
 import { ArrowDown, ArrowUp, FileText, Plus, Trash2, Upload, Wand2 } from "lucide-react";
 import { useState } from "react";
 import type { GuideSection, Participant, Segment, StudyDesign } from "../../shared/types";
-import { allQuestions, makeId, newSegment, parseCsv, parseDiscussionGuide, SEGMENT_COLORS } from "../../shared/util";
-import { api, readDocumentText } from "../api";
+import { allQuestions, makeId, newSegment, parseDiscussionGuide, SEGMENT_COLORS } from "../../shared/util";
+import { api, readDocumentText, readSpreadsheet } from "../api";
 import type { ViewProps } from "../components/Workspace";
 import { AiButton, Button, Field, Modal, pickFile, useAction, useApp } from "../ui";
 
-const DOC_ACCEPT = ".docx,.txt,.md,.csv";
+const DOC_ACCEPT = ".docx,.pdf,.txt,.md,.rtf,.doc";
 
 function DocumentSource({ label, text, onText, placeholder }: { label: string; text: string; onText: (text: string) => void; placeholder: string }) {
   const { notify } = useApp();
@@ -29,7 +29,7 @@ function DocumentSource({ label, text, onText, placeholder }: { label: string; t
       <div className="doc-source-head">
         <span className="field-label">{label}</span>
         <div className="row-actions">
-          <Button size="small" onClick={load} icon={<Upload size={14} />}>Upload Word / text</Button>
+          <Button size="small" onClick={load} icon={<Upload size={14} />}>Upload Word / PDF / text</Button>
           {text && <Button size="small" variant="ghost" onClick={() => setOpen(!open)}>{open ? "Hide text" : `Show text (${text.length.toLocaleString()} characters)`}</Button>}
         </div>
       </div>
@@ -178,12 +178,12 @@ export function SetupView({ study, update, goTo }: ViewProps) {
           <div className="row-actions">
             <Button icon={<Plus size={15} />} onClick={() => setParticipants((list) => [...list, blankParticipant(list.length, study.segments[0]?.id ?? null)])}>Add participant</Button>
             <Button icon={<FileText size={15} />} onClick={action(async () => {
-              const [file] = await pickFile(".csv,text/csv");
+              const [file] = await pickFile(".xlsx,.csv,text/csv");
               if (!file) return;
-              const rows = parseCsv(await file.text());
+              const rows = await readSpreadsheet(file);
               if (rows.length < 2) throw new Error("The CSV needs a header row and at least one participant.");
               setImportingPeople(rows);
-            })}>Import recruitment list (CSV)</Button>
+            })}>Import recruitment list (Excel / CSV)</Button>
           </div>
           <div className="table-wrap">
             <table className="people-table">

@@ -77,16 +77,28 @@ export function uploadMedia(studyId: string, file: File, onProgress: (fraction: 
   });
 }
 
-/** Reads TXT/SRT/VTT/CSV in the browser, and DOCX via the local server. */
-export async function readDocumentText(file: File): Promise<string> {
-  const ext = file.name.toLowerCase().split(".").pop() ?? "";
-  if (["txt", "srt", "vtt", "csv", "md", "tsv"].includes(ext)) return file.text();
-  const response = await fetch(`/api/extract-text?name=${encodeURIComponent(file.name)}`, {
+async function postFile<T>(url: string, file: File): Promise<T> {
+  const response = await fetch(url, {
     method: "POST",
     headers: { "x-sweetleaf": "1", "content-type": "application/octet-stream" },
     body: file,
   });
-  const data = await response.json();
+  const data = await response.json().catch(() => ({ error: "Could not read this file." }));
   if (!response.ok) throw new Error(data.error ?? "Could not read this file.");
-  return data.text as string;
+  return data as T;
+}
+
+/**
+ * Extracts text from Word, PDF, Excel or text files via the local server.
+ * "structured" keeps headings and lists (guides, briefs); "transcript" yields one utterance per line.
+ */
+export async function readDocumentText(file: File, mode: "structured" | "transcript" = "structured"): Promise<string> {
+  const { text } = await postFile<{ text: string }>(`/api/extract-text?mode=${mode}&name=${encodeURIComponent(file.name)}`, file);
+  return text;
+}
+
+/** Reads the rows of an Excel or CSV sheet. */
+export async function readSpreadsheet(file: File): Promise<string[][]> {
+  const { rows } = await postFile<{ rows: string[][] }>(`/api/extract-table?name=${encodeURIComponent(file.name)}`, file);
+  return rows;
 }

@@ -5,6 +5,7 @@ import path from "node:path";
 import ffmpegStatic from "ffmpeg-static";
 import type { JobStatus, SttProviderId, SttSettings, TranscriptLine } from "../shared/types";
 import { makeId } from "../shared/util";
+import { providerFetch } from "./ai";
 import { getSettings, getStudy, HttpError, mediaDir, saveTranscript } from "./storage";
 
 export const STT_PROVIDERS: { id: SttProviderId; label: string; defaultBaseUrl: string; defaultModel: string; keyUrl: string }[] = [
@@ -64,35 +65,21 @@ async function transcribeChunk(stt: SttSettings, file: string): Promise<SttSegme
   if (!info) throw new HttpError(400, "No transcription service is connected. Open Settings → Transcription.");
   const model = stt.model || info.defaultModel;
   const diarize = /diarize/.test(model);
-  const form = new FormData();
-  form.append("file", await openAsBlob(file, { type: "audio/mpeg" }), path.basename(file));
-  form.append("model", model);
-  if (diarize) {
-    form.append("response_format", "diarized_json");
-    form.append("chunking_strategy", "auto");
-  } else {
-    form.append("response_format", "verbose_json");
-  }
-  if (stt.language) form.append("language", stt.language);
+  const fields: [string, string][] = [["model", model]];
+  if (diarize) fields.push(["response_format", "diarized_json"], ["chunking_strategy", "auto"]);
+  else fields.push(["response_format", "verbose_json"]);
+  if (stt.language) fields.push(["language", stt.language]);
 
   const url = `${(stt.baseUrl || info.defaultBaseUrl).replace(/\/+$/, "")}/audio/transcriptions`;
-  let response: Response;
-  try {
-    response = await fetch(url, {
-      method: "POST",
-      headers: stt.apiKey ? { authorization: `Bearer ${stt.apiKey}` } : {},
-      body: form,
-      signal: AbortSignal.timeout(15 * 60 * 1000),
-    });
-  } catch (error) {
-    throw new Error(`Could not reach the transcription service: ${(error as Error).message}`);
-  }
-  const text = await response.text();
-  if (!response.ok) {
-    let message = text.slice(0, 300);
-    try { message = JSON.parse(text)?.error?.message ?? message; } catch { /* keep raw text */ }
-    throw new Error(`Transcription service error (${response.status}): ${message}`);
-  }
+  const blob = await openAsBlob(file, { type: "audio/mpeg" });
+  const headers: Record<string, string> = stt.apiKey ? { authorization: `Bearer ${stt.apiKey}` } : {};
+  // The form is rebuilt for each attempt because a request body can only be sent once.
+  const text = await providerFetch(url, () => {
+    const body = new FormData();
+    body.append("file", blob, path.basename(file));
+    for (const [key, value] of fields) body.append(key, value);
+    return { method: "POST", headers, body };
+  }, { label: info.label.replace(/ \(.*\)$/, ""), timeoutMs: 15 * 60 * 1000, model });
   const data = JSON.parse(text);
   if (Array.isArray(data.segments) && data.segments.length) {
     return data.segments.map((segment: SttSegment) => ({

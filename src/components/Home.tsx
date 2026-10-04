@@ -1,7 +1,7 @@
 import { FolderOpen, Plus, Trash2, Upload, Users, ListChecks, BookOpen } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { StudySummary } from "../../shared/types";
-import { api, readDocumentText } from "../api";
+import { api } from "../api";
 import { Button, EmptyState, Field, Modal, pickFile, useApp } from "../ui";
 
 export function Home({ onOpen }: { onOpen: (id: string) => void }) {
@@ -24,7 +24,7 @@ export function Home({ onOpen }: { onOpen: (id: string) => void }) {
     const [file] = await pickFile(".json,application/json");
     if (!file) return;
     try {
-      const study = await api.importStudy(JSON.parse(await readDocumentText(file)));
+      const study = await api.importStudy(JSON.parse(await file.text()));
       notify(`Imported “${study.name}”. Recordings are not included in backups — re-attach them in Sessions.`, "success");
       onOpen(study.id);
     } catch (error) {

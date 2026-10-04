@@ -157,7 +157,7 @@ export function SttConnect({ onSaved }: { onSaved?: (settings: PublicSettings) =
       <div className="provider-grid compact">
         <button type="button" className={`provider-card ${provider === "none" ? "selected" : ""}`} onClick={() => choose("none")}>
           <div className="provider-top"><strong>No automatic transcription</strong><span className="pill local"><HardDrive size={12} /> Local</span></div>
-          <p>Import transcripts you already have (Word, TXT, SRT, VTT, CSV).</p>
+          <p>Import transcripts you already have (Word, PDF, Excel, TXT, SRT, VTT, CSV).</p>
         </button>
         {providers.map((entry) => (
           <button key={entry.id} type="button" className={`provider-card ${provider === entry.id ? "selected" : ""}`} onClick={() => choose(entry.id as SttProviderId)}>

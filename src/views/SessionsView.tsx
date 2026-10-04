@@ -1,13 +1,14 @@
-import { FileAudio, FileText, Mic, Pause, Play, Plus, RotateCcw, RotateCw, Search, StickyNote, Tag, Trash2, Upload, Users, Wand2 } from "lucide-react";
+import { FileAudio, FileText, FolderInput, Mic, Pause, Play, Plus, RotateCcw, RotateCw, Search, StickyNote, Tag, Trash2, Upload, Users, Wand2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { JobStatus, Observation, Participant, Transcript, TranscriptLine } from "../../shared/types";
 import { allQuestions, formatTime, makeId, nowIso, parseTranscript } from "../../shared/util";
 import { api, readDocumentText, uploadMedia } from "../api";
+import { BULK_ACCEPT, BulkImport } from "../components/BulkImport";
 import type { ViewProps } from "../components/Workspace";
 import { Button, EmptyState, Field, Modal, pickFile, Progress, useAction, useApp } from "../ui";
 
 const MEDIA_ACCEPT = "video/*,audio/*,.mp4,.mov,.mkv,.webm,.avi,.mp3,.m4a,.wav,.aac,.ogg,.opus,.flac,.wma,.amr";
-const TRANSCRIPT_ACCEPT = ".docx,.txt,.srt,.vtt,.csv";
+export const TRANSCRIPT_ACCEPT = ".docx,.pdf,.txt,.srt,.vtt,.csv,.xlsx,.doc";
 
 export function nextCanvasPosition(count: number) {
   return { x: 30 + (count % 4) * 240, y: 30 + Math.floor(count / 4) * 190 };
@@ -23,6 +24,15 @@ export function SessionsView({ study, update, flush, transcriptIndex, refreshTra
   const [upload, setUpload] = useState<{ name: string; progress: number } | null>(null);
   const [jobs, setJobs] = useState<JobStatus[]>([]);
   const [composer, setComposer] = useState<{ quote: string; time: number | null } | null>(null);
+  const [bulkFiles, setBulkFiles] = useState<File[] | null>(null);
+  const startBulkImport = async () => {
+    const files = await pickFile(BULK_ACCEPT, true);
+    if (files.length) setBulkFiles(files);
+  };
+  const bulkDialog = bulkFiles && (
+    <BulkImport study={study} files={bulkFiles} transcriptIndex={transcriptIndex} update={update} flush={flush} onClose={() => setBulkFiles(null)}
+      onDone={async () => { await refreshTranscripts(); if (participant) await loadTranscript(participant.id); }} />
+  );
   const [mediaIndex, setMediaIndex] = useState(0);
   const mediaRef = useRef<HTMLVideoElement>(null);
   const [currentTime, setCurrentTime] = useState(0);
@@ -127,7 +137,7 @@ export function SessionsView({ study, update, flush, transcriptIndex, refreshTra
     const [file] = await pickFile(TRANSCRIPT_ACCEPT);
     if (!file) return;
     try {
-      const lines = parseTranscript(await readDocumentText(file));
+      const lines = parseTranscript(await readDocumentText(file, "transcript"));
       if (!lines.length) throw new Error("No transcript text was found in that file.");
       if (transcript?.lines.length && !window.confirm("Replace the existing transcript for this participant?")) return;
       const next: Transcript = { participantId: participant.id, lines, source: "import", language: "", updatedAt: nowIso() };
@@ -178,10 +188,16 @@ export function SessionsView({ study, update, flush, transcriptIndex, refreshTra
 
   if (!study.participants.length) {
     return (
-      <EmptyState icon={<Users size={28} />} title="Add participants first">
-        <p>Sessions are organised by participant. Add them in Setup (or import your recruitment list).</p>
-        <Button variant="primary" onClick={() => goTo("setup")}>Go to Setup</Button>
-      </EmptyState>
+      <>
+        <EmptyState icon={<Users size={28} />} title="No participants yet">
+          <p>Import your transcripts and recordings in one go — participants are created from the file names (e.g. “R01 Priya.docx”). Or set up participants first in Setup.</p>
+          <div className="row-actions center">
+            <Button onClick={() => goTo("setup")}>Go to Setup</Button>
+            <Button variant="primary" onClick={startBulkImport} icon={<FolderInput size={15} />}>Import transcripts & recordings</Button>
+          </div>
+        </EmptyState>
+        {bulkDialog}
+      </>
     );
   }
 
@@ -200,6 +216,7 @@ export function SessionsView({ study, update, flush, transcriptIndex, refreshTra
               </div>
             </div>
             <div className="row-actions">
+              <Button onClick={startBulkImport} icon={<FolderInput size={15} />}>Bulk import</Button>
               <Button onClick={addRecording} icon={<Upload size={15} />}>Add recording</Button>
               <Button onClick={importTranscript} icon={<FileText size={15} />}>Import transcript</Button>
             </div>
@@ -307,6 +324,7 @@ export function SessionsView({ study, update, flush, transcriptIndex, refreshTra
         </div>
       )}
 
+      {bulkDialog}
       {composer && participant && (
         <NoteComposer
           initial={composer}
@@ -413,7 +431,7 @@ function TranscriptPanel({ transcript, loading, currentTime, onSeek, onNote, onC
         {loading && <p className="muted-text pad">Loading…</p>}
         {!loading && !lines.length && (
           <div className="pad">
-            <p className="muted-text">Import the transcript as a Word document, text, SRT, VTT or CSV file — or transcribe the recording automatically.</p>
+            <p className="muted-text">Import the transcript (Word, PDF, Excel, TXT, SRT, VTT or CSV) — or transcribe the recording automatically.</p>
             <Button onClick={onImport} icon={<FileText size={15} />}>Import transcript</Button>
           </div>
         )}

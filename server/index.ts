@@ -4,11 +4,11 @@ import path from "node:path";
 import { pipeline } from "node:stream/promises";
 import { fileURLToPath } from "node:url";
 import express, { type NextFunction, type Request, type Response } from "express";
-import mammoth from "mammoth";
 import type { LlmSettings, MediaFile, PublicSettings, Settings, SttSettings, Study, Transcript } from "../shared/types";
 import { emptyStudy, makeId, newSegment, nowIso } from "../shared/util";
 import { LLM_PROVIDERS, listModels, testConnection } from "./ai";
 import { draftTopline, extractDesign, extractSegments, fillGrid, segmentReport, structureGuide, suggestClusters, synthesiseRow } from "./analysis";
+import { extractDocumentText, spreadsheetRows } from "./documents";
 import { gridWorkbook, toplineDocx, toplineMarkdown } from "./exports";
 import { sampleStudy } from "./sample";
 import {
@@ -242,18 +242,13 @@ app.delete("/api/studies/:id/media/:file", async (req, res) => {
 
 // ---- document import ----
 
-app.post("/api/extract-text", express.raw({ type: () => true, limit: "60mb" }), async (req, res) => {
-  const name = String(req.query.name ?? "");
-  const ext = path.extname(name).toLowerCase();
-  const buffer = req.body as Buffer;
-  if (ext === ".docx") {
-    const { value } = await mammoth.extractRawText({ buffer });
-    return res.json({ text: value });
-  }
-  if (ext === ".doc" || ext === ".pdf") {
-    throw new HttpError(400, `${ext.toUpperCase().slice(1)} files can't be read directly. Open it in Word and save as .docx, or copy the text and paste it in.`);
-  }
-  res.json({ text: buffer.toString("utf8") });
+app.post("/api/extract-text", express.raw({ type: () => true, limit: "200mb" }), async (req, res) => {
+  const mode = req.query.mode === "transcript" ? "transcript" : "structured";
+  res.json({ text: await extractDocumentText(req.body as Buffer, String(req.query.name ?? ""), mode) });
+});
+
+app.post("/api/extract-table", express.raw({ type: () => true, limit: "60mb" }), async (req, res) => {
+  res.json({ rows: await spreadsheetRows(req.body as Buffer, String(req.query.name ?? "")) });
 });
 
 // ---- transcription jobs ----

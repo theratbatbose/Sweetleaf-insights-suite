@@ -9,7 +9,7 @@ import { AiButton, Button, EmptyState, Field, Modal, Progress, useAction, useApp
 type CellRef = { participantId: string; questionId: string };
 
 export function GridView({ study, update, flush, transcriptIndex, goTo }: ViewProps) {
-  const { notify } = useApp();
+  const { notify, settings } = useApp();
   const action = useAction();
   const [segmentFilter, setSegmentFilter] = useState<string>("all");
   const [editing, setEditing] = useState<CellRef | null>(null);
@@ -38,23 +38,45 @@ export function GridView({ study, update, flush, transcriptIndex, goTo }: ViewPr
     const ready = targets.filter((participant) => transcriptIndex[participant.id]?.lines);
     if (!ready.length) return notify("None of these participants has a transcript yet. Add transcripts in Sessions.", "error");
     await flush();
-    let filled = 0;
-    for (const [index, participant] of ready.entries()) {
+    const jobs = ready.map((participant) => {
       const existing = study.grid[participant.id] ?? {};
-      const questionIds = onlyEmpty ? questions.filter((question) => !existing[question.id]).map((question) => question.id) : questions.filter((question) => !existing[question.id] || existing[question.id].status === "ai").map((question) => question.id);
-      if (!questionIds.length) continue;
-      setFilling({ label: `${participant.code} ${participant.name}`, done: index, total: ready.length });
-      try {
-        const { cells } = await api.fillGrid(study.id, participant.id, questionIds);
-        mergeCells(participant.id, cells);
-        filled += Object.keys(cells).length;
-      } catch (error) {
-        notify(`${participant.code}: ${(error as Error).message}`, "error");
-        if (/connect|API key|provider/i.test((error as Error).message)) break;
+      const questionIds = questions
+        .filter((question) => onlyEmpty ? !existing[question.id] : !existing[question.id] || existing[question.id].status === "ai")
+        .map((question) => question.id);
+      return { participant, questionIds };
+    }).filter((job) => job.questionIds.length);
+    if (!jobs.length) return notify("Every cell for these participants is already filled.", "info");
+
+    // Several respondents at once with hosted AI; one at a time for a model running on this PC.
+    const concurrency = settings.llm.provider === "ollama" ? 1 : 3;
+    let filled = 0;
+    let finished = 0;
+    let stop = false;
+    const failures: string[] = [];
+    const queue = [...jobs];
+    setFilling({ label: jobs.slice(0, concurrency).map((job) => job.participant.code).join(", "), done: 0, total: jobs.length });
+    const worker = async () => {
+      while (!stop && queue.length) {
+        const { participant, questionIds } = queue.shift()!;
+        try {
+          const { cells } = await api.fillGrid(study.id, participant.id, questionIds);
+          mergeCells(participant.id, cells);
+          filled += Object.keys(cells).length;
+        } catch (error) {
+          const message = (error as Error).message;
+          failures.push(`${participant.code}: ${message}`);
+          // Key, credit or model problems affect every request: stop instead of repeating the same error.
+          if (/API key|no credit|billing|isn't available|Settings → AI/.test(message)) stop = true;
+        }
+        finished += 1;
+        setFilling({ label: queue.slice(0, concurrency).map((job) => job.participant.code).join(", ") || "finishing", done: finished, total: jobs.length });
       }
-    }
+    };
+    await Promise.all(Array.from({ length: Math.min(concurrency, jobs.length) }, worker));
     setFilling(null);
-    notify(`Drafted ${filled} cells. AI drafts are marked — review them before sharing.`, "success");
+    await flush();
+    if (failures.length) notify(`${failures.length} participant(s) could not be filled. ${failures[0]}`, "error");
+    if (filled) notify(`Drafted ${filled} cells. AI drafts are marked — review them before sharing.`, "success");
   };
 
   if (!questions.length || !study.participants.length) {
@@ -87,7 +109,7 @@ export function GridView({ study, update, flush, transcriptIndex, goTo }: ViewPr
           <a className="btn secondary" href={api.exportUrl(study.id, "grid.xlsx")} onClick={() => { void flush(); }}><Download size={15} /> Excel</a>
         </div>
       </div>
-      {filling && <div className="fill-status"><span>Reading {filling.label}'s transcript… ({filling.done + 1} of {filling.total})</span><Progress value={(filling.done + 0.5) / filling.total} /></div>}
+      {filling && <div className="fill-status"><span>AI is reading transcripts — {filling.done} of {filling.total} respondents done{filling.done < filling.total ? ` (working on ${filling.label})` : ""}. You can keep working in other tabs.</span><Progress value={(filling.done + 0.3) / filling.total} /></div>}
 
       <div className="grid-scroll">
         <table className="analysis-grid">

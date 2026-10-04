@@ -1,6 +1,6 @@
 import type { GridCell, GuideSection, LlmSettings, Segment, SegmentReport, Study, Transcript, TranscriptLine } from "../shared/types";
 import { allQuestions, makeId, nowIso, transcriptToText, verifyQuotes } from "../shared/util";
-import { chatJson } from "./ai";
+import { chatJson, TruncatedError } from "./ai";
 import { HttpError } from "./storage";
 
 const RESEARCH_PRINCIPLES = `You assist a qualitative market researcher in India. The researcher stays in charge: your output is a draft they will review.
@@ -11,17 +11,20 @@ Rules:
 - Write summaries in clear, plain English from the respondent's point of view. Note hesitation, contradiction and emotion where the transcript shows it.
 - If something was not discussed, say so by leaving the field empty rather than guessing.`;
 
-/** ~120k characters ≈ 30k tokens: fits comfortably in current hosted models. */
-const MAX_TRANSCRIPT_CHARS = 120_000;
-const QUESTIONS_PER_CALL = 20;
+/**
+ * ~120k characters ≈ 30–60k tokens (Indian scripts use more tokens per word): fits current hosted models.
+ * Local models run with a 32k-token window, so they get smaller parts.
+ */
+const transcriptCharsFor = (llm: LlmSettings) => llm.provider === "ollama" ? 40_000 : 120_000;
+const QUESTIONS_PER_CALL = 15;
 
-function chunkTranscript(lines: TranscriptLine[]) {
+function chunkTranscript(lines: TranscriptLine[], maxChars: number) {
   const parts: TranscriptLine[][] = [];
   let current: TranscriptLine[] = [];
   let size = 0;
   for (const line of lines) {
     const length = line.text.length + line.speaker.length + 12;
-    if (size + length > MAX_TRANSCRIPT_CHARS && current.length) {
+    if (size + length > maxChars && current.length) {
       parts.push(current);
       current = [];
       size = 0;
@@ -125,11 +128,11 @@ export async function fillGrid(llm: LlmSettings, study: Study, transcript: Trans
   if (!questions.length) throw new HttpError(400, "Add discussion guide questions in Setup before filling the grid.");
   if (!transcript.lines.length) throw new HttpError(400, "This participant has no transcript yet.");
 
-  const parts = chunkTranscript(transcript.lines);
+  const parts = chunkTranscript(transcript.lines, transcriptCharsFor(llm));
   const collected = new Map<string, { summaries: string[]; quotes: { text: string; translation?: string }[] }>();
 
-  for (const [partIndex, lines] of parts.entries()) {
-    for (const batch of chunk(questions, QUESTIONS_PER_CALL)) {
+  const askBatch = async (lines: TranscriptLine[], partIndex: number, batch: typeof questions): Promise<RawCell[]> => {
+    try {
       const result = await chatJson<{ cells?: RawCell[] }>(llm, RESEARCH_PRINCIPLES,
         `${studyContext(study)}
 
@@ -147,8 +150,20 @@ Return {"cells":[{"questionId":"...","summary":"...","quotes":[{"text":"...","tr
 
 TRANSCRIPT:
 ${transcriptToText(lines)}`, 16_000);
+      return result.cells ?? [];
+    } catch (error) {
+      // Answer too long for the model's output limit: ask about half the questions at a time.
+      if (error instanceof TruncatedError && batch.length > 1) {
+        const middle = Math.ceil(batch.length / 2);
+        return [...await askBatch(lines, partIndex, batch.slice(0, middle)), ...await askBatch(lines, partIndex, batch.slice(middle))];
+      }
+      throw error;
+    }
+  };
 
-      for (const cell of result.cells ?? []) {
+  for (const [partIndex, lines] of parts.entries()) {
+    for (const batch of chunk(questions, QUESTIONS_PER_CALL)) {
+      for (const cell of await askBatch(lines, partIndex, batch)) {
         if (!cell.questionId || !batch.some((question) => question.id === cell.questionId)) continue;
         const entry = collected.get(cell.questionId) ?? { summaries: [], quotes: [] };
         if (cell.summary?.trim()) entry.summaries.push(cell.summary.trim());
@@ -221,7 +236,7 @@ Segment: ${segment.name}${segment.description ? ` — ${segment.description}` : 
 Other segments in the study: ${others || "none"}
 
 Evidence for each respondent in this segment:
-${memberEvidence.slice(0, 150_000)}
+${memberEvidence.slice(0, llm.provider === "ollama" ? 40_000 : 150_000)}
 
 Write a cumulative view of this segment:
 - recurring: 3–6 short theme labels that recur across respondents

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { segmentsToLines } from "../server/transcribe";
 import { parseJsonLoose } from "../server/ai";
-import { allQuestions, formatTime, parseCsv, parseDiscussionGuide, parseTime, parseTranscript, verifyQuotes } from "../shared/util";
+import { allQuestions, formatTime, matchParticipant, parseCsv, parseDiscussionGuide, parseTime, parseTranscript, verifyQuotes } from "../shared/util";
 
 describe("time helpers", () => {
   it("parses and formats timestamps", () => {
@@ -117,5 +117,57 @@ describe("parseJsonLoose", () => {
     expect(parseJsonLoose('```json\n{"a":1}\n```')).toEqual({ a: 1 });
     expect(parseJsonLoose('Sure! {"a":2} Hope that helps')).toEqual({ a: 2 });
     expect(parseJsonLoose("nope")).toBeUndefined();
+  });
+});
+
+describe("vendor transcript layouts", () => {
+  it("handles speaker on its own line, timestamp lines and numbered respondents", () => {
+    const lines = parseTranscript([
+      "Transcript – IDI 03, Lucknow",
+      "MODERATOR",
+      "Aap kitni baar namkeen khate hain?",
+      "RESPONDENT",
+      "Roz shaam ko, chai ke saath.",
+      "[00:04:10] Moderator",
+      "Aur brand?",
+      "Respondent 1 (Arjun): Haldiram's, mostly.",
+      "Q: Why?",
+      "A: Taste consistent hai.",
+      "Priya: Main bhi.",
+    ].join("\n"));
+    expect(lines.map((l) => [l.start, l.speaker, l.text])).toEqual([
+      [null, "", "Transcript – IDI 03, Lucknow"],
+      [null, "MODERATOR", "Aap kitni baar namkeen khate hain?"],
+      [null, "RESPONDENT", "Roz shaam ko, chai ke saath."],
+      [250, "Moderator", "Aur brand?"],
+      [null, "Respondent 1 (Arjun)", "Haldiram's, mostly."],
+      [null, "Q", "Why?"],
+      [null, "A", "Taste consistent hai."],
+      [null, "Priya", "Main bhi."],
+    ]);
+  });
+});
+
+describe("discussion guide edge cases", () => {
+  it("skips title/preamble and stimulus instructions, but never returns empty for plain guides", () => {
+    const guide = parseDiscussionGuide("Discussion guide – Snacks\n## Warm-up\n1. Tell me about yourself\nShow concept board 1\nNote: allow time\n2. First reaction?");
+    expect(allQuestions(guide).map((q) => q.text)).toEqual(["Tell me about yourself", "First reaction?"]);
+    expect(allQuestions(parseDiscussionGuide("Tell me about yourself\nWhat do you snack on")).length).toBe(2);
+  });
+});
+
+describe("matchParticipant", () => {
+  const people = [
+    { id: "a", code: "R01", name: "Priya S." },
+    { id: "b", code: "R02", name: "Arjun" },
+    { id: "c", code: "R10", name: "Kavya" },
+  ];
+  it("matches by code, name, or number", () => {
+    expect(matchParticipant("R1_Lucknow.docx", people)?.id).toBe("a");
+    expect(matchParticipant("Transcript - r-02 Delhi.pdf", people)?.id).toBe("b");
+    expect(matchParticipant("Kavya Chennai final.docx", people)?.id).toBe("c");
+    expect(matchParticipant("IDI 10 video.mp4", people)?.id).toBe("c");
+    expect(matchParticipant("random file.docx", people)).toBeNull();
+    expect(matchParticipant("R100.docx", people)).toBeNull();
   });
 });

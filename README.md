@@ -38,7 +38,47 @@ On first start, Sweetleaf asks you to connect an AI provider. You bring your own
 
 Consumer chat subscriptions (ChatGPT Plus, Claude Pro/Max) are **not** API access. Anthropic explicitly forbids using Claude subscription logins in third-party apps, so Sweetleaf uses API keys or local models. You can skip AI entirely, and every step works manually.
 
-**Transcription** (optional) is set up separately: OpenAI (labels speakers), Groq Whisper (fast and cheap), or any local Whisper server with an OpenAI-compatible API. Sweetleaf extracts the audio with a bundled ffmpeg and sends it in 10-minute parts. If your transcripts come from a vendor, import them instead. Word (.docx), TXT, SRT, VTT and CSV are supported, with or without timestamps and speaker labels.
+**Transcription** (optional) is set up separately: OpenAI (labels speakers), Groq Whisper (fast and cheap), or any local Whisper server with an OpenAI-compatible API. Sweetleaf extracts the audio with a bundled ffmpeg and sends it in 10-minute parts. If your transcripts come from a vendor, import them instead (see *Files Sweetleaf reads* above).
+
+## Your first real study (about 15 minutes)
+
+1. **Start Sweetleaf** and connect your AI (Settings → AI: choose the provider, paste the key, press **Test connection**, then **Save**).
+2. **New study** → **Setup**:
+   - **Brief:** *Upload Word / PDF / text*, then **Fill fields from brief**.
+   - **Screener:** upload it, then **Detect segments from screener**. Check the segment names.
+   - **Discussion guide:** upload it, then **Structure guide with AI** (or *Structure automatically*). Read through the questions; these become the rows of your grid. Edit, reorder or delete freely.
+   - **Participants:** **Import recruitment list (Excel / CSV)**. Columns such as *Resp ID, Name, Segment, City, Age, Gender, Date* are recognised automatically, and you can adjust the mapping.
+3. **Sessions** → **Bulk import** → select all transcripts (and recordings, if you have them) at once.
+   - Files are matched to participants by the code or first name in the file name, so name files like `R01 Priya.docx`, `R01_interview.mp4`, `IDI 3 Chennai.pdf`.
+   - Check the matches in the list, then **Import**.
+   - With no participants set up yet, bulk import creates them from the file names.
+4. **Analysis grid** → **Fill empty cells with AI**. Several respondents are processed at once.
+   - Review each cell; quotes in amber were not found word-for-word in the transcript.
+   - Click a cell to edit it, or add quotes by searching the transcript.
+   - **Synthesise row** writes the across-respondents column. **Excel** downloads the grid.
+5. **Segments** → **Draft with AI** for each cut.
+6. **Inference:** your notes, plus **Suggest clusters**.
+7. **Topline** → **Draft from my analysis** → edit → **Word**.
+
+Want to practise first? The [`examples/`](examples/) folder has a complete fictional study, with every file type below, to run through these steps.
+
+### Files Sweetleaf reads
+
+| What | Formats |
+|---|---|
+| Brief, screener, discussion guide | Word (.docx), PDF (with selectable text), .txt/.md, or paste the text |
+| Recruitment list | Excel (.xlsx) or CSV |
+| Transcripts | Word, PDF, Excel, .txt (including Windows "Unicode"), SRT, VTT, CSV |
+| Recordings | MP4, MOV, MKV, WEBM, AVI, MP3, M4A, WAV, AAC, OGG, FLAC, WMA, AMR |
+
+Transcript layouts that work, with or without timestamps:
+- `Moderator: text` / `R1: text` / `Respondent 2 (Priya): text` / `Q:` and `A:`
+- The speaker's name on its own line, with the words below it
+- `[00:12:30] Moderator: text`, or the timestamp on its own line
+- Word tables with *Time | Speaker | Dialogue* columns (header rows and serial-number columns are ignored)
+- Subtitle files (SRT/VTT) from Zoom, Teams, Otter or similar
+
+Not readable: old `.doc` (open in Word and *Save As .docx*), scanned PDFs without selectable text (run OCR first), PowerPoint.
 
 ## The workflow
 
@@ -88,7 +128,7 @@ The server only listens on `127.0.0.1` (this computer) and refuses requests from
 ```bash
 npm install
 npm run dev      # API on :4317 (tsx watch) + Vite on :5173 with /api proxied
-npm test         # unit tests (parsers, quote verification, merging)
+npm test         # unit tests (parsers, file matching, quote verification, AI error handling)
 npm run build    # typecheck, build UI to dist/, bundle server to build/server.mjs
 npm start        # serve the built app on :4317
 ```
@@ -96,11 +136,13 @@ npm start        # serve the built app on :4317
 - `server/`: Express API, file storage, AI providers (`ai.ts`), analysis prompts (`analysis.ts`), transcription jobs (`transcribe.ts`), Excel/Word export.
 - `shared/`: data model and parsers used by both sides.
 - `src/`: React UI; one view per workflow step in `src/views/`.
+- `scripts/make-examples.mjs`: regenerates the fictional example study in `examples/`.
 - `tests/mock-provider.mjs`: a fake OpenAI-compatible chat and transcription server for testing without API keys. Point the "Other OpenAI-compatible" provider at `http://127.0.0.1:4500/v1`.
 
 ## Known limitations
 
 - Speaker labels from automatic transcription can change between the 10-minute parts of a long recording. Use **Speakers** in the transcript panel to rename them.
 - Very long transcripts are processed in parts. Small local models (Ollama) may give weaker grid drafts than large hosted models.
-- PDF and old `.doc` files aren't read directly. Save them as `.docx` or paste the text.
+- AI requests retry automatically when a provider is busy or rate-limiting. New API accounts have low rate limits, so the first large grid fill can be slow.
+- Old `.doc` files and scanned (image-only) PDFs aren't read. Save as `.docx`, or OCR the PDF first.
 - Single user per computer. There is no real-time team collaboration.
