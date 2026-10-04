@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - name: Smoke-test the local server
+        shell: bash
+        run: |
+          SWEETLEAF_DATA_DIR="$RUNNER_TEMP/sweetleaf-data" PORT=4317 node build/server.mjs &
+          for i in $(seq 1 30); do curl -sf http://127.0.0.1:4317/api/settings && break; sleep 1; done
+          curl -sf http://127.0.0.1:4317/ | grep -q '<div id="root">'
+          curl -sf -X POST -H 'x-sweetleaf: 1' -H 'content-type: application/json' http://127.0.0.1:4317/api/studies/sample | grep -q '"participants"'
