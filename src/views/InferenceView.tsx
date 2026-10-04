@@ -238,7 +238,7 @@ export function InferenceView({ study, update, flush, goTo }: ViewProps) {
                     }));
                   }}><Trash2 size={13} /></button>
                 </div>
-                <input value={c.title} onChange={(event) => updateCluster(c.id, { title: event.target.value })} aria-label="Cluster title" />
+                <textarea className="cluster-title" rows={1} value={c.title} onChange={(event) => updateCluster(c.id, { title: event.target.value.replace(/\n/g, " ") })} aria-label="Cluster title" />
                 <textarea value={c.thought} placeholder="The insight, in one or two sentences…" onChange={(event) => updateCluster(c.id, { thought: event.target.value })} aria-label="Cluster insight" />
                 <div className="cluster-foot">
                   <span>{study.topline.blocks.includes(c.id) ? "In topline" : ""}</span>

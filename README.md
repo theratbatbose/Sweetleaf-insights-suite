@@ -1,148 +1,174 @@
 # Sweetleaf Suite
 
-A local-first workbench for qualitative research: from brief, screener and discussion guide to recordings, transcripts, an analysis grid, segment views, synthesis and the topline. It runs on your own computer. There's no login, no cloud account, and nothing is uploaded unless you choose to use an AI service.
+**A workbench for qualitative researchers.** Bring in your brief, screener, discussion guide, transcripts and recordings, and work through to an analysis grid, segment views and a topline, all in one place.
 
-```
-Setup  →  Sessions  →  Analysis grid  →  Segments  →  Inference  →  Topline
-brief,    recordings,   respondent ×      cut-wise      cluster        write &
-screener, transcripts,  question matrix   synthesis     insights       export
-guide,    notes         (Excel export)                                 (Word)
-people
-```
+- **Runs on your own computer.** No login, no cloud account. Your files stay on your PC.
+- **Works the way you already work.** The discussion guide becomes the rows of your analysis grid, respondents become the columns, and everything exports to Excel and Word.
+- **AI is optional.** Connect your own AI to draft grid cells, summaries and the topline. Every quote it suggests is checked against the transcript.
+- **Made for Indian research.** Hindi, Hinglish, Tamil and other languages, plus the transcript formats vendors here deliver.
 
-## Install and start (Windows, macOS, Linux)
+![The analysis grid](docs/images/6-grid.png)
 
-1. Install **Node.js 20 LTS or newer** from <https://nodejs.org> (one time).
-2. Download this project (green **Code** button → **Download ZIP**) and unzip it somewhere permanent, e.g. `Documents\Sweetleaf`.
-3. Start it:
-   - **Windows:** double-click **`Start Sweetleaf.bat`**
-   - **macOS:** double-click **`start-sweetleaf.command`** (first time: right-click → Open, because it isn't from the App Store)
-   - **Linux:** run `./start-sweetleaf.sh`
+---
 
-The first start installs and prepares the app, which takes a few minutes and needs internet. After that it starts in seconds and works offline (apart from any AI services you connect). Your browser opens at <http://localhost:4317>. Keep the black window open while you work, and close it to stop Sweetleaf.
+## Download
 
-Use **Google Chrome or Microsoft Edge**. They play MP4 interview recordings; some other browsers don't.
+### [⬇ Download Sweetleaf (ZIP)](https://github.com/theratbatbose/Sweetleaf-insights-suite/archive/refs/heads/main.zip)
 
-## First run: connect your own AI
+Works on Windows and Mac. Free.
 
-On first start, Sweetleaf asks you to connect an AI provider. You bring your own account and pay that provider directly:
+---
 
-| Option | What you need | Data leaves this PC? |
+## Set it up (one time, about 10 minutes)
+
+**1. Install Node.js.** Sweetleaf needs it to run.
+- Go to **[nodejs.org](https://nodejs.org)** and click the big green **LTS** button.
+- Open the downloaded file and click **Next** until it finishes.
+
+**2. Unzip Sweetleaf.**
+- Find the ZIP you downloaded, right-click it and choose **Extract All** (on a Mac, double-click it).
+- Move the folder somewhere easy to find, such as **Documents**.
+
+**3. Start Sweetleaf.**
+- **Windows:** open the folder and double-click **`Start Sweetleaf.bat`**.
+- **Mac:** right-click **`start-sweetleaf.command`** → **Open** → **Open**.
+
+**What you'll see:**
+- A black window opens. **The first time, it sets itself up for a few minutes.** Messages scroll past, and any that say `warn` are normal.
+- When it's ready, it says **"Sweetleaf Suite is running at http://localhost:4317"** and your browser opens Sweetleaf.
+- **Keep the black window open while you work.** Closing it turns Sweetleaf off.
+
+![Welcome screen](docs/images/1-welcome.png)
+
+**Every time after that:** just double-click the same file again. It starts in seconds.
+
+---
+
+## Try it in 5 minutes with the demo study
+
+Sweetleaf comes with a **demo study**: a fictional four-interview study on tea-time snacking, with every step already filled in. Open it from your studies list and click through the six tabs:
+
+| Tab | What to try |
+|---|---|
+| **1. Setup** | See how the discussion guide became a list of questions, and how participants and segments are set up. |
+| **2. Sessions** | Read a transcript. Hover over a line and click the note icon on the right to log what you noticed. |
+| **3. Analysis grid** | Click any cell to edit it. Look for the **amber quote**: that's the quote check catching an AI quote that isn't in the transcript. Click **Excel** to download the grid. |
+| **4. Segments** | The cumulative view for each segment (cut). |
+| **5. Inference** | Drag notes around, select some, and click **Cluster selected**. |
+| **6. Topline** | The written story. Click **Word** to download it. |
+
+![Studies list with the demo](docs/images/3-studies.png)
+
+**Done with it?** Go back to **Studies** and click the 🗑 bin icon on the demo. You can bring it back any time with **Add the demo study** at the bottom of the Studies page.
+
+Want to practise importing files too? The **`examples`** folder inside Sweetleaf has the same study as Word, PDF, Excel and text files. Follow the steps below with those files.
+
+---
+
+## Use it for your own study
+
+**1. Connect AI (optional).** Click the ⚙ icon at the top right → **AI model**. See *[Connecting AI](#connecting-ai-optional)* below.
+
+**2. Create the study.** **Studies** → **New study** → give it a name.
+
+**3. Setup tab:**
+- **Brief:** click *Upload Word / PDF / text*, then **Fill fields from brief**.
+- **Screener:** upload it, then **Detect segments from screener**.
+- **Discussion guide:** upload it, then **Structure guide with AI** (or *Structure automatically*). Check the questions; these become your grid rows. You can edit, reorder or delete any of them.
+- **Participants:** **Import recruitment list (Excel / CSV)**. Sweetleaf spots columns like *Resp ID, Name, Segment, City, Age*.
+
+![Discussion guide in Setup](docs/images/4-setup-guide.png)
+
+**4. Sessions tab → Bulk import.**
+- Select **all your transcripts** (and recordings, if you have them) at once.
+- Sweetleaf matches each file to a participant using the code or name in the file name, so name your files like **`R01 Priya.docx`** or **`R02 interview.mp4`**.
+- Check the list, then click **Import**. If you haven't added participants yet, Sweetleaf creates them from the file names.
+
+![Bulk import](docs/images/11-bulk-import.png)
+
+**5. Analysis grid tab.**
+- Click **Fill empty cells with AI** (or write the cells yourself).
+- Then **review**: click a cell to edit it, and check any **amber** quotes.
+- **Synthesise row** writes the "across respondents" column.
+- Click **Excel** to download the grid.
+
+![Quote check](docs/images/7-quote-check.png)
+
+**6. Segments → Inference → Topline.** Draft each step with AI or write it yourself, then download the topline with **Word**.
+
+Everything saves automatically. There's no Save button.
+
+---
+
+## Connecting AI (optional)
+
+Sweetleaf works fully without AI. With AI, the slow parts get faster: structuring the guide, drafting grid cells, summarising segments and drafting the topline. You stay in charge, because AI drafts are marked and never overwrite your own writing.
+
+**You need an "API key" from an AI company.** It's like a password that lets Sweetleaf use your AI account. You pay that company directly for what you use.
+
+| Option | Where to get a key | Notes |
 |---|---|---|
-| Anthropic (Claude) | API key from console.anthropic.com | Yes, the text of each AI action |
-| OpenAI (GPT) | API key from platform.openai.com | Yes |
-| Google Gemini | API key from aistudio.google.com | Yes |
-| OpenRouter | One key for many models | Yes |
-| **Ollama** | Ollama installed on this PC plus a downloaded model | **No** |
-| Other OpenAI-compatible | LM Studio, vLLM, Groq, a company gateway | Depends on the server |
+| **Claude** (Anthropic) | [console.anthropic.com](https://console.anthropic.com/settings/keys) | For analysis. Use OpenAI or Groq if you want automatic transcription. |
+| **ChatGPT models** (OpenAI) | [platform.openai.com](https://platform.openai.com/api-keys) | Can also transcribe recordings |
+| **Gemini** (Google) | [aistudio.google.com](https://aistudio.google.com/apikey) | **Turn on billing** for client work. On the free tier, Google may use what you send to improve its products. |
+| **OpenRouter** | [openrouter.ai](https://openrouter.ai/keys) | One key for many AI models |
+| **Ollama** | [ollama.com](https://ollama.com) | Runs on your own PC, so nothing leaves it. Needs a powerful computer. |
 
-Consumer chat subscriptions (ChatGPT Plus, Claude Pro/Max) are **not** API access. Anthropic explicitly forbids using Claude subscription logins in third-party apps, so Sweetleaf uses API keys or local models. You can skip AI entirely, and every step works manually.
+**How to connect:** ⚙ → **AI model** → pick a provider → paste the key → **Load models** → choose one → **Test connection** → **Save**.
 
-**Transcription** (optional) is set up separately: OpenAI (labels speakers), Groq Whisper (fast and cheap), or any local Whisper server with an OpenAI-compatible API. Sweetleaf extracts the audio with a bundled ffmpeg and sends it in 10-minute parts. If your transcripts come from a vendor, import them instead (see *Files Sweetleaf reads* above).
+Good to know:
+- **A ChatGPT Plus or Claude Pro subscription is not an API key.** Those plans can't be used by other apps. You need a separate API account.
+- **Paying from India:** use a card with international payments turned on, and add some prepaid credit before your first study.
+- **Cost:** our rough estimate is **₹700–1,500 for a 20-interview study** (AI analysis plus automatic transcription). Prices change, so set a monthly spending limit in your provider's account.
+- **Privacy:** when you click an AI button, the text it needs (for example one transcript) is sent to that company. Recordings are only sent if you use automatic transcription. Check this fits your client agreements and consent forms, or use Ollama.
 
-## Your first real study (about 15 minutes)
+**Automatic transcription** (optional) is set up separately: ⚙ → **Transcription**. If your transcripts come from a vendor, you don't need it.
 
-1. **Start Sweetleaf** and connect your AI (Settings → AI: choose the provider, paste the key, press **Test connection**, then **Save**).
-2. **New study** → **Setup**:
-   - **Brief:** *Upload Word / PDF / text*, then **Fill fields from brief**.
-   - **Screener:** upload it, then **Detect segments from screener**. Check the segment names.
-   - **Discussion guide:** upload it, then **Structure guide with AI** (or *Structure automatically*). Read through the questions; these become the rows of your grid. Edit, reorder or delete freely.
-   - **Participants:** **Import recruitment list (Excel / CSV)**. Columns such as *Resp ID, Name, Segment, City, Age, Gender, Date* are recognised automatically, and you can adjust the mapping.
-3. **Sessions** → **Bulk import** → select all transcripts (and recordings, if you have them) at once.
-   - Files are matched to participants by the code or first name in the file name, so name files like `R01 Priya.docx`, `R01_interview.mp4`, `IDI 3 Chennai.pdf`.
-   - Check the matches in the list, then **Import**.
-   - With no participants set up yet, bulk import creates them from the file names.
-4. **Analysis grid** → **Fill empty cells with AI**. Several respondents are processed at once.
-   - Review each cell; quotes in amber were not found word-for-word in the transcript.
-   - Click a cell to edit it, or add quotes by searching the transcript.
-   - **Synthesise row** writes the across-respondents column. **Excel** downloads the grid.
-5. **Segments** → **Draft with AI** for each cut.
-6. **Inference:** your notes, plus **Suggest clusters**.
-7. **Topline** → **Draft from my analysis** → edit → **Word**.
+---
 
-Want to practise first? The [`examples/`](examples/) folder has a complete fictional study, with every file type below, to run through these steps.
+## Everyday questions
 
-### Files Sweetleaf reads
+**How do I stop Sweetleaf?** Close the black window.
+
+**Where is my work saved?** In a folder called **`SweetleafData`** in your user folder (for example `C:\Users\YourName\SweetleafData`). It's separate from the app folder.
+
+**How do I back up?** Copy the whole `SweetleafData` folder to a drive or cloud backup. To move one study to another computer, use **Topline → Study backup (.json)**, then **Import backup** on the other computer.
+
+**How do I update to a new version?** Download the ZIP again, unzip it, and start it the same way. Your studies stay where they are. You can delete the old app folder.
+
+**Can my team share a study?** Not yet. Each person runs Sweetleaf on their own computer. Share Excel and Word exports, or send a study backup file.
+
+---
+
+## Something not working?
+
+| What you see | What to do |
+|---|---|
+| **"Windows protected your PC"** | Click **More info** → **Run anyway**. Windows shows this for any downloaded file. |
+| **"How do you want to open this file?"** | Close it. Double-click **`Start Sweetleaf.bat`** again, or right-click it → **Open**. |
+| **"Node.js is not installed"** | Do step 1 of setup, then try again. |
+| **Lots of `npm warn` messages** | Normal. Wait. |
+| **The browser didn't open** | Open Chrome or Edge and go to **localhost:4317**. |
+| **"This site can't be reached"** | Sweetleaf isn't running. Double-click the start file and keep the black window open. |
+| **A video won't play** | Use Chrome or Edge, or convert the video to MP4. It can still be transcribed. |
+| **"API key was rejected" / "no credit"** | Paste the key again in ⚙ → AI model, or add credit in your AI provider's billing page. |
+| **A file won't import** | Old `.doc` files: open in Word → *Save As* → `.docx`. Scanned PDFs: ask for the Word version. |
+
+Still stuck? [Open an issue](https://github.com/theratbatbose/Sweetleaf-insights-suite/issues) with a screenshot.
+
+---
+
+## Files Sweetleaf can read
 
 | What | Formats |
 |---|---|
-| Brief, screener, discussion guide | Word (.docx), PDF (with selectable text), .txt/.md, or paste the text |
+| Brief, screener, discussion guide | Word (.docx), PDF, text, or paste the text |
 | Recruitment list | Excel (.xlsx) or CSV |
-| Transcripts | Word, PDF, Excel, .txt (including Windows "Unicode"), SRT, VTT, CSV |
-| Recordings | MP4, MOV, MKV, WEBM, AVI, MP3, M4A, WAV, AAC, OGG, FLAC, WMA, AMR |
+| Transcripts | Word, PDF, Excel, text, SRT, VTT (Zoom/Teams captions), CSV |
+| Recordings | MP4, MOV, MKV, WEBM, MP3, M4A, WAV and other common formats |
 
-Transcript layouts that work, with or without timestamps:
-- `Moderator: text` / `R1: text` / `Respondent 2 (Priya): text` / `Q:` and `A:`
-- The speaker's name on its own line, with the words below it
-- `[00:12:30] Moderator: text`, or the timestamp on its own line
-- Word tables with *Time | Speaker | Dialogue* columns (header rows and serial-number columns are ignored)
-- Subtitle files (SRT/VTT) from Zoom, Teams, Otter or similar
+Transcripts can be laid out in any of the usual ways: `Moderator: …` / `R1: …` / `Q:` and `A:`, the speaker's name on its own line, timestamps or none, or a Word table with *Time | Speaker | Dialogue* columns.
 
-Not readable: old `.doc` (open in Word and *Save As .docx*), scanned PDFs without selectable text (run OCR first), PowerPoint.
+---
 
-## The workflow
-
-1. **Setup**
-   - Upload or paste the brief. AI can fill in client, objectives, methodology and markets.
-   - Add the screener. AI detects the segments (cuts), or you add them by hand.
-   - Add the discussion guide. Structure it with AI or the built-in parser; each question becomes a row in the grid.
-   - Add participants by hand, or import your recruitment sheet as CSV.
-2. **Sessions:** for each participant, add the recording (it is copied into the study folder) and import or auto-transcribe the transcript.
-   - Click a line to jump the video there. The current line highlights while it plays.
-   - Select text, or use the note button on a line, to log an observation with a code and its guide question.
-   - Shortcuts: Alt+K play/pause, Alt+J / Alt+L back/forward 5 s, Alt+N new note.
-3. **Analysis grid:** respondents as columns (grouped by segment), guide questions as rows, plus an "Across respondents" column.
-   - AI can draft every empty cell (summary plus verbatim quotes with timestamps and English translations).
-   - **Every AI quote is checked against the transcript**; quotes that can't be found are flagged in amber, including in the Excel export.
-   - AI never overwrites a cell you have written or reviewed.
-   - Export to Excel.
-4. **Segments:** a cumulative view per cut: recurring themes, differences, contradictions, areas to explore and key excerpts. Draft with AI from the grid, or write it yourself.
-5. **Inference:** your notes become cards on a canvas.
-   - Drag them, lasso-select, cluster and connect them, or ask AI to suggest clusters.
-   - Filter by segment.
-6. **Topline:** write the story, drop clusters in as research blocks, or have AI draft from your synthesis. Export to Word or Markdown.
-
-## Where your data lives
-
-Everything is in **`SweetleafData`** in your home folder (for example `C:\Users\you\SweetleafData`):
-
-```
-SweetleafData/
-  settings.json            AI settings and API keys (readable only by your user)
-  studies/<study>/
-    study.json             setup, grid, notes, clusters, topline
-    transcripts/*.json
-    media/*                copies of your recordings
-```
-
-- To back up everything, including recordings, copy that folder.
-- To move one study to another PC, use **Topline → Study backup (.json)**, then **Import backup** there (recordings aren't included).
-- To store data elsewhere, set the environment variable `SWEETLEAF_DATA_DIR` before starting.
-
-The server only listens on `127.0.0.1` (this computer) and refuses requests from other websites.
-
-**Privacy:** when you click an AI action, the text it needs (e.g. one transcript) goes to the provider you connected, under your account and their data terms. Recordings are never sent to the AI model; only audio goes to the transcription service if you use one. Check that this fits your client agreements and consent forms, or use Ollama to keep everything on the machine.
-
-## For developers
-
-```bash
-npm install
-npm run dev      # API on :4317 (tsx watch) + Vite on :5173 with /api proxied
-npm test         # unit tests (parsers, file matching, quote verification, AI error handling)
-npm run build    # typecheck, build UI to dist/, bundle server to build/server.mjs
-npm start        # serve the built app on :4317
-```
-
-- `server/`: Express API, file storage, AI providers (`ai.ts`), analysis prompts (`analysis.ts`), transcription jobs (`transcribe.ts`), Excel/Word export.
-- `shared/`: data model and parsers used by both sides.
-- `src/`: React UI; one view per workflow step in `src/views/`.
-- `scripts/make-examples.mjs`: regenerates the fictional example study in `examples/`.
-- `tests/mock-provider.mjs`: a fake OpenAI-compatible chat and transcription server for testing without API keys. Point the "Other OpenAI-compatible" provider at `http://127.0.0.1:4500/v1`.
-
-## Known limitations
-
-- Speaker labels from automatic transcription can change between the 10-minute parts of a long recording. Use **Speakers** in the transcript panel to rename them.
-- Very long transcripts are processed in parts. Small local models (Ollama) may give weaker grid drafts than large hosted models.
-- AI requests retry automatically when a provider is busy or rate-limiting. New API accounts have low rate limits, so the first large grid fill can be slow.
-- Old `.doc` files and scanned (image-only) PDFs aren't read. Save as `.docx`, or OCR the PDF first.
-- Single user per computer. There is no real-time team collaboration.
+<sub>For developers: see [docs/DEVELOPERS.md](docs/DEVELOPERS.md).</sub>

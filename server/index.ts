@@ -90,6 +90,7 @@ app.put("/api/settings", async (req, res) => {
   const body = req.body as Partial<Settings>;
   await saveSettings({
     onboarded: body.onboarded ?? saved.onboarded,
+    demoSeeded: saved.demoSeeded,
     llm: mergeLlm(saved.llm, body.llm),
     stt: mergeStt(saved.stt, body.stt),
   });
@@ -138,12 +139,14 @@ app.post("/api/studies", async (req, res) => {
   res.json(await saveStudy(emptyStudy(name)));
 });
 
-app.post("/api/studies/sample", async (_req, res) => {
+async function createDemoStudy() {
   const { study, transcripts } = sampleStudy();
   const saved = await saveStudy(study);
   for (const transcript of transcripts) await saveTranscript(saved.id, transcript);
-  res.json(saved);
-});
+  return saved;
+}
+
+app.post("/api/studies/sample", async (_req, res) => { res.json(await createDemoStudy()); });
 
 app.post("/api/studies/import", async (req, res) => {
   const backup = req.body as { study?: Study; transcripts?: Record<string, Transcript> };
@@ -358,6 +361,14 @@ function openBrowser(url: string) {
 }
 
 await ensureDataDir();
+// Preload the demo study once, on a fresh install. Deleting it later is respected.
+{
+  const settings = await getSettings();
+  if (!settings.demoSeeded) {
+    if (!(await listStudies()).length) await createDemoStudy();
+    await saveSettings({ ...settings, demoSeeded: true });
+  }
+}
 const server = app.listen(PORT, HOST, () => {
   const url = `http://localhost:${PORT}`;
   console.log(`\n  Sweetleaf Suite is running at ${url}`);

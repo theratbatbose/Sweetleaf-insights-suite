@@ -129,6 +129,8 @@ export type StudyDesign = {
 export type Study = {
   id: ID;
   name: string;
+  /** The preloaded demo study with fictional data */
+  demo?: boolean;
   createdAt: string;
   updatedAt: string;
   design: StudyDesign;
@@ -147,6 +149,7 @@ export type Study = {
 export type StudySummary = {
   id: ID;
   name: string;
+  demo: boolean;
   client: string;
   updatedAt: string;
   participantCount: number;
@@ -176,6 +179,8 @@ export type SttSettings = {
 
 export type Settings = {
   onboarded: boolean;
+  /** Set once the demo study has been created, so deleting it is permanent */
+  demoSeeded?: boolean;
   llm: LlmSettings;
   stt: SttSettings;
 };

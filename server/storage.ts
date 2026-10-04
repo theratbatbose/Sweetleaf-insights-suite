@@ -70,6 +70,7 @@ export async function listStudies(): Promise<StudySummary[]> {
     summaries.push({
       id: study.id,
       name: study.name,
+      demo: Boolean(study.demo),
       client: study.design?.client ?? "",
       updatedAt: study.updatedAt,
       participantCount: study.participants?.length ?? 0,
@@ -137,6 +138,7 @@ export async function getSettings(): Promise<Settings> {
   const saved = await readJson<Partial<Settings>>(SETTINGS_FILE);
   return {
     onboarded: saved?.onboarded ?? false,
+    demoSeeded: saved?.demoSeeded ?? false,
     llm: { ...defaultSettings.llm, ...(saved?.llm ?? {}) },
     stt: { ...defaultSettings.stt, ...(saved?.stt ?? {}) },
   };

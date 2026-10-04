@@ -65,6 +65,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
             <ul className="checklist">
               <li className={aiReady ? "ok" : ""}>{aiReady ? `AI connected: ${settings.llm.model || settings.llm.provider}` : "No AI connected — manual analysis works fully; AI buttons will prompt you to connect."}</li>
               <li className={sttReady ? "ok" : ""}>{sttReady ? "Automatic transcription is on." : "Transcripts will be imported from files."}</li>
+              <li className="ok">A demo study (fictional data) is ready in your studies list, so you can try every feature.</li>
               <li className="ok">Studies are saved in {settings.dataDir}</li>
             </ul>
             <p className="lead">The workflow: <strong>Setup</strong> (brief, segments, discussion guide, participants) → <strong>Sessions</strong> (recordings, transcripts, notes) → <strong>Grid</strong> (respondent × question) → <strong>Segments</strong> → <strong>Inference</strong> → <strong>Topline</strong>.</p>

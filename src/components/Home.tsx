@@ -48,9 +48,9 @@ export function Home({ onOpen }: { onOpen: (id: string) => void }) {
 
       {studies && studies.length === 0 && (
         <EmptyState icon={<BookOpen size={28} />} title="Start your first study">
-          <p>Create a study and add your brief, screener and discussion guide. Or open a small sample study to see the whole workflow first.</p>
+          <p>Create a study and add your brief, screener and discussion guide. Or open the demo study (fictional data) to try every feature first.</p>
           <div className="row-actions center">
-            <Button onClick={async () => { const study = await api.createSample(); onOpen(study.id); }}>Open sample study</Button>
+            <Button onClick={async () => { const study = await api.createSample(); onOpen(study.id); }}>Open the demo study</Button>
             <Button variant="primary" onClick={() => setCreating(true)} icon={<Plus size={15} />}>New study</Button>
           </div>
         </EmptyState>
@@ -60,7 +60,7 @@ export function Home({ onOpen }: { onOpen: (id: string) => void }) {
         {studies?.map((study) => (
           <div key={study.id} className="study-card" role="button" tabIndex={0} onClick={() => onOpen(study.id)} onKeyDown={(event) => { if (event.key === "Enter") onOpen(study.id); }}>
             <div>
-              <h3>{study.name}</h3>
+              <h3>{study.demo && <span className="chip demo">Demo</span>} {study.name}</h3>
               <p>{study.client || "No client set"}</p>
             </div>
             <div className="study-card-meta">
@@ -77,8 +77,8 @@ export function Home({ onOpen }: { onOpen: (id: string) => void }) {
           </div>
         ))}
       </div>
-      {studies && studies.length > 0 && (
-        <div className="home-foot"><Button variant="ghost" size="small" onClick={async () => { const study = await api.createSample(); onOpen(study.id); }}>Add the sample study</Button></div>
+      {studies && studies.length > 0 && !studies.some((study) => study.demo) && (
+        <div className="home-foot"><Button variant="ghost" size="small" onClick={async () => { const study = await api.createSample(); onOpen(study.id); }}>Add the demo study</Button></div>
       )}
 
       {creating && (

@@ -23,7 +23,7 @@ function reply(prompt) {
     const lines = transcript.split("\n").map((l) => l.replace(/^\[[\d:]+\]\s*/, "").replace(/^[^:]{1,24}:\s*/, "").trim()).filter((l) => l.length > 10);
     return { cells: ids.map((id, i) => ({
       questionId: id,
-      summary: `Mock summary for ${id}.`,
+      summary: lines[i % Math.max(lines.length, 1)] ? `Mentions: ${lines[i % lines.length].slice(0, 90)}` : "",
       quotes: [
         { text: lines[i % Math.max(lines.length, 1)] ?? "", translation: "" },
         ...(i === 0 ? [{ text: "This sentence was never said by anyone.", translation: "" }] : []),

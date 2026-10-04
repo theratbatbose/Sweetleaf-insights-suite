@@ -86,6 +86,13 @@ export function Workspace({ studyId, tab, onTab, onExit }: { studyId: string; ta
         <SaveIndicator state={saveState} />
       </div>
 
+      {study.demo && (
+        <div className="demo-banner">
+          <strong>Demo study.</strong> Fictional data, with every step already filled in. Click around, edit anything, try the AI buttons.
+          Delete it from the <button className="link-btn" onClick={async () => { await flush(); onExit(); }}>Studies page</button> (bin icon) when you're done.
+        </div>
+      )}
+
       <nav className="phase-tabs" aria-label="Study workflow">
         {TABS.map((entry, index) => (
           <button key={entry.id} className={`phase-tab ${tab === entry.id ? "active" : ""}`} onClick={() => goTo(entry.id)}>
