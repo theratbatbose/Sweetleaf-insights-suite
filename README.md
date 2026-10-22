@@ -1,3 +1,5 @@
+<img src="docs/images/icon.png" alt="" width="88" align="right">
+
 # Sweetleaf Suite
 
 **A workbench for qualitative researchers.** Bring in your brief, screener, discussion guide, transcripts and recordings, and work through to an analysis grid, segment views and a topline, all in one place.
@@ -8,6 +10,13 @@
 - **Made for Indian research.** Hindi, Hinglish, Tamil and other languages, plus the transcript formats vendors here deliver.
 
 ![The analysis grid](docs/images/6-grid.png)
+
+### What's new in 1.1
+
+- **A real desktop app for Windows.** One installer, its own window and Start-menu icon. No Node.js and no black window.
+- **One-click AI connection.** Pick Claude, ChatGPT models or Gemini, paste your key and click **Connect**. Sweetleaf picks a model and tests it for you.
+- **Works on office networks.** Uses your computer's proxy and security certificates, and explains connection problems in plain English.
+- **A guided tour** of the demo study, so new researchers can learn the whole workflow in two minutes.
 
 ---
 
@@ -78,7 +87,7 @@ Afterwards, explore on your own. Some things to try on each tab:
 
 **Done with it?** Go back to **Studies** and click the 🗑 bin icon on the demo. You can bring it back any time with **Add the demo study** at the bottom of the Studies page.
 
-Want to practise importing files too? The **`examples`** folder inside Sweetleaf has the same study as Word, PDF, Excel and text files. Follow the steps below with those files.
+Want to practise importing files too? Download the **[example files](https://github.com/theratbatbose/Sweetleaf-insights-suite/releases/latest/download/Sweetleaf-example-files.zip)**. It's the same fictional study as a Word brief, screener and guide, an Excel recruitment list, and four transcripts in different vendor formats. Follow the steps below with those files. (They are also in the `examples` folder of the ZIP version.)
 
 ---
 
@@ -167,7 +176,7 @@ Good to know:
 | **ZIP version: "Node.js is not installed"** | Install Node.js from nodejs.org, then try again. |
 | **ZIP version: lots of `npm warn` messages** | Normal. Wait. |
 | **ZIP version: "This site can't be reached"** | Sweetleaf isn't running. Double-click the Start file and keep the black window open. |
-| **A video won't play** | Use Chrome or Edge, or convert the video to MP4. It can still be transcribed. |
+| **A video won't play** | Convert it to MP4 (most video tools have "Save as MP4"). It can still be transcribed as it is. ZIP version: use Chrome or Edge. |
 | **"API key was rejected"** | Copy the key again (the whole thing) from the provider's website. A ChatGPT Plus or Claude Pro login is **not** an API key. |
 | **"No credit or billing is not set up"** | Add credit on your AI provider's billing page, then click **Connect** again. |
 | **"couldn't find api…" or "blocked or cut off"** | Usually an office network, VPN or firewall. Try a phone hotspot to check. If it works there, ask IT to allow the AI website, or enter your office proxy under ⚙ → AI model → **Advanced**. Sweetleaf uses your Windows proxy automatically. |

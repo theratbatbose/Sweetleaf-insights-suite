@@ -60,6 +60,8 @@ jobs:
         with:
           path: artifacts
           merge-multiple: true
+      - name: Bundle the example files
+        run: cd examples && zip -r ../artifacts/Sweetleaf-example-files.zip . -x "source/*"
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.version.outputs.version }}
@@ -73,5 +75,12 @@ jobs:
             - **Windows:** [Sweetleaf-Setup.exe](https://github.com/${{ github.repository }}/releases/latest/download/Sweetleaf-Setup.exe). Double-click it. If Windows says "Windows protected your PC", click **More info → Run anyway**.
             - **Mac (Apple Silicon, experimental):** [Sweetleaf-mac.dmg](https://github.com/${{ github.repository }}/releases/latest/download/Sweetleaf-mac.dmg). Open it, drag Sweetleaf to Applications, then right-click the app → **Open**.
             - **Linux:** [Sweetleaf-linux.AppImage](https://github.com/${{ github.repository }}/releases/latest/download/Sweetleaf-linux.AppImage)
+            - **Practice files:** [Sweetleaf-example-files.zip](https://github.com/${{ github.repository }}/releases/latest/download/Sweetleaf-example-files.zip) (a fictional study as Word, PDF, Excel and text files)
+
+            ### What's new
+            - Desktop app for Windows: one installer, its own window, no Node.js needed
+            - One-click AI connection (Claude, ChatGPT models, Gemini, OpenRouter, Ollama)
+            - Works on office networks and VPNs: uses the computer's proxy and certificates, with clear error messages
+            - Guided tour of the demo study
 
             No Node.js needed. Your studies are kept in the `SweetleafData` folder in your user folder and stay put when you update.

@@ -35,13 +35,15 @@ cd desktop && npm run dist      # build an installer for this OS into desktop/re
 - `server/index.ts`: routes, localhost-only protections (Host header check; `x-sweetleaf` header required on writes)
 - `server/storage.ts`: studies as `studies/<id>/study.json`, transcripts as separate files, atomic writes
 - `server/documents.ts`: Word (via mammoth HTML), PDF (unpdf), Excel (exceljs) and text extraction
+- `server/network.ts`: proxy (Settings → environment → Windows proxy), system certificates, plain-language network errors
 - `server/ai.ts`: providers (Anthropic, OpenAI, Gemini, OpenRouter, Ollama, OpenAI-compatible), retries and plain-language errors
 - `server/analysis.ts`: prompts for guide structuring, grid filling (with quote verification), syntheses, clusters, topline
 - `server/transcribe.ts`: ffmpeg audio extraction, 10-minute chunks, background jobs
 - `server/exports.ts`: Excel grid and Word topline
 - `server/sample.ts`: the preloaded demo study (fictional)
 - `shared/`: data model and parsers used by both sides
-- `src/`: React UI; one view per workflow step in `src/views/`
+- `src/`: React UI; one view per workflow step in `src/views/`, onboarding and one-step AI connect in `src/components/ConnectAi.tsx`, guided tour in `src/components/Tour.tsx` (steps target `data-tour` attributes)
+- `desktop/`: Electron wrapper and installer settings (see above)
 - `scripts/launch.mjs`: one-click launcher logic
 - `scripts/make-examples.mjs`: regenerates `examples/`
 - `tests/mock-provider.mjs`: a fake OpenAI-compatible chat and transcription server for testing without keys. Point the "Other OpenAI-compatible" provider at `http://127.0.0.1:4500/v1`.
