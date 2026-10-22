@@ -40,13 +40,23 @@ Works on Windows and Mac. Free.
 
 ![Welcome screen](docs/images/1-welcome.png)
 
+**Then:** Sweetleaf asks you to connect an AI (or skip it), and offers a **2-minute guided tour**. Click **Show me around**.
+
+![Tour offer](docs/images/12-tour-offer.png)
+
 **Every time after that:** just double-click the same file again. It starts in seconds.
 
 ---
 
 ## Try it in 5 minutes with the demo study
 
-Sweetleaf comes with a **demo study**: a fictional four-interview study on tea-time snacking, with every step already filled in. Open it from your studies list and click through the six tabs:
+Sweetleaf comes with a **demo study**: a fictional four-interview study on tea-time snacking, with every step already filled in.
+
+**The guided tour** starts by itself the first time you open the demo. It dims the screen, highlights one part at a time and explains it. Use **Next** (or the → key). To watch it again, click **Take the guided tour** on the yellow banner inside the demo.
+
+![Guided tour](docs/images/13-tour-tabs.png)
+
+Afterwards, explore on your own. Some things to try on each tab:
 
 | Tab | What to try |
 |---|---|
@@ -114,7 +124,9 @@ Sweetleaf works fully without AI. With AI, the slow parts get faster: structurin
 | **OpenRouter** | [openrouter.ai](https://openrouter.ai/keys) | One key for many AI models |
 | **Ollama** | [ollama.com](https://ollama.com) | Runs on your own PC, so nothing leaves it. Needs a powerful computer. |
 
-**How to connect:** ⚙ → **AI model** → pick a provider → paste the key → **Load models** → choose one → **Test connection** → **Save**.
+**How to connect:** ⚙ (top right) → **AI model** → choose **Claude**, **ChatGPT models** or **Gemini**. Sweetleaf shows the steps to get a key and a button that opens the right website. Paste the key and click **Connect**. Sweetleaf checks the key, picks a good model and sends a test message, all in one go.
+
+![Connecting AI](docs/images/2-connect-ai.png)
 
 Good to know:
 - **A ChatGPT Plus or Claude Pro subscription is not an API key.** Those plans can't be used by other apps. You need a separate API account.
@@ -134,7 +146,7 @@ Good to know:
 
 **How do I back up?** Copy the whole `SweetleafData` folder to a drive or cloud backup. To move one study to another computer, use **Topline → Study backup (.json)**, then **Import backup** on the other computer.
 
-**How do I update to a new version?** Download the ZIP again, unzip it, and start it the same way. Your studies stay where they are. You can delete the old app folder.
+**How do I update to a new version?** Close the black window, download the ZIP again, unzip it, and start it the same way. Your studies and AI settings stay where they are. You can delete the old app folder.
 
 **Can my team share a study?** Not yet. Each person runs Sweetleaf on their own computer. Share Excel and Word exports, or send a study backup file.
 
@@ -151,7 +163,11 @@ Good to know:
 | **The browser didn't open** | Open Chrome or Edge and go to **localhost:4317**. |
 | **"This site can't be reached"** | Sweetleaf isn't running. Double-click the start file and keep the black window open. |
 | **A video won't play** | Use Chrome or Edge, or convert the video to MP4. It can still be transcribed. |
-| **"API key was rejected" / "no credit"** | Paste the key again in ⚙ → AI model, or add credit in your AI provider's billing page. |
+| **"API key was rejected"** | Copy the key again (the whole thing) from the provider's website. A ChatGPT Plus or Claude Pro login is **not** an API key. |
+| **"No credit or billing is not set up"** | Add credit on your AI provider's billing page, then click **Connect** again. |
+| **"couldn't find api…" or "blocked or cut off"** | Usually an office network, VPN or firewall. Try a phone hotspot to check. If it works there, ask IT to allow the AI website, or enter your office proxy under ⚙ → AI model → **Advanced**. Sweetleaf uses your Windows proxy automatically. |
+| **"A security certificate … wasn't trusted"** | Usually antivirus or an office network. Start Sweetleaf with the **Start Sweetleaf** file (not some other way), and install the latest Node.js LTS from nodejs.org. |
+| **The Connect button is greyed out** | Paste your key in the box first. |
 | **A file won't import** | Old `.doc` files: open in Word → *Save As* → `.docx`. Scanned PDFs: ask for the Word version. |
 
 Still stuck? [Open an issue](https://github.com/theratbatbose/Sweetleaf-insights-suite/issues) with a screenshot.

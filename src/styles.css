@@ -484,4 +484,40 @@ blockquote { margin: 6px 0 0; padding-left: 9px; border-left: 3px solid #c9d8cc;
 
 /* demo study */
 .chip.demo { background: var(--amber-soft); color: #7a5222; vertical-align: middle; }
-.demo-banner { background: var(--amber-soft); border: 1px solid #efd9b8; color: #6f5328; border-radius: 11px; padding: 9px 13px; font-size: 13px; margin-bottom: 12px; }
+.demo-banner { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; background: var(--amber-soft); border: 1px solid #efd9b8; color: #6f5328; border-radius: 11px; padding: 9px 13px; font-size: 13px; margin-bottom: 12px; }
+.demo-banner > div { flex: 1; min-width: 260px; }
+
+/* one-step AI connect */
+.connect-steps { display: grid; gap: 14px; margin-top: 14px; }
+.connect-step { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
+.guide-steps { margin: 4px 0 12px; padding-left: 20px; display: grid; gap: 4px; }
+.guide-steps li { padding-left: 2px; }
+.key-input { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px; }
+.status-line > div { flex: 1; }
+.status-line.warn-line { background: var(--amber-soft); color: #6f5328; }
+.try-list { margin: 6px 0 0; padding-left: 18px; font-size: 12.5px; color: var(--ink-2); }
+.advanced { border: 1px dashed var(--line); border-radius: 12px; padding: 8px 14px; background: var(--paper); }
+.advanced summary { cursor: pointer; color: var(--muted); font-size: 13px; padding: 4px 0; }
+.connected-card { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; background: var(--green-soft); border: 1px solid #cfe0d3; border-radius: 12px; padding: 14px 16px; color: var(--green); }
+.connected-card div { display: flex; flex-direction: column; }
+.connected-card span { color: var(--ink-2); font-size: 13px; }
+
+/* guided tour */
+.tour { position: fixed; inset: 0; z-index: 90; pointer-events: none; }
+.tour-dim { position: fixed; inset: 0; background: rgba(24, 22, 18, .55); }
+.tour-spotlight { position: fixed; border-radius: 12px; box-shadow: 0 0 0 9999px rgba(24, 22, 18, .55), 0 0 0 3px #f2c98a; transition: top .25s, left .25s, width .25s, height .25s; }
+.tour-card { position: fixed; pointer-events: auto; background: var(--paper); border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 22px 60px rgba(0,0,0,.28); padding: 14px 16px 12px; animation: tour-in .2s ease-out; }
+.tour-card h3 { margin: 4px 0 6px; font-size: 17px; }
+.tour-card p { margin: 0 0 10px; color: var(--ink-2); font-size: 14px; line-height: 1.55; }
+.tour-top { display: flex; justify-content: space-between; align-items: center; }
+.tour-count { font-size: 11.5px; font-weight: 700; color: var(--muted); letter-spacing: .05em; }
+.tour-dots { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 10px; }
+.tour-dots span { width: 7px; height: 7px; border-radius: 50%; background: var(--line); }
+.tour-dots span.done { background: #9cb8a4; }
+.tour-dots span.on { background: var(--green); width: 18px; border-radius: 99px; }
+.tour-actions { display: flex; align-items: center; gap: 8px; }
+body.touring .line-note { opacity: 1; }
+@keyframes tour-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+.tour-offer { display: flex; gap: 14px; align-items: center; background: var(--green-soft); border: 1px solid #cfe0d3; border-radius: 14px; padding: 14px 16px; margin: 16px 0; color: var(--green); }
+.tour-offer p { margin: 2px 0 0; color: var(--ink-2); }

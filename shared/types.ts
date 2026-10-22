@@ -183,9 +183,20 @@ export type Settings = {
   demoSeeded?: boolean;
   llm: LlmSettings;
   stt: SttSettings;
+  /** Optional proxy, e.g. "http://proxy.company.com:8080". Empty = automatic. */
+  proxy?: string;
+};
+
+export type NetworkInfo = {
+  proxy: string;
+  proxySource: "settings" | "environment" | "windows" | "none";
+  windowsAutoConfig: string;
+  systemCertificates: boolean;
+  nodeVersion: string;
 };
 
 export type PublicSettings = Settings & {
+  network: NetworkInfo;
   dataDir: string;
   llmKeySet: boolean;
   sttKeySet: boolean;

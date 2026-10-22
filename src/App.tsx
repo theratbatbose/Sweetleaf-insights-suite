@@ -62,7 +62,7 @@ export default function App() {
   return (
     <AppContext.Provider value={context}>
       {!settings.onboarded ? (
-        <Onboarding onDone={() => navigate({ studyId: null, tab: "setup" })} />
+        <Onboarding onDone={(openStudyId) => navigate({ studyId: openStudyId ?? null, tab: "setup" })} />
       ) : (
         <div className="app-shell">
           <header className="topbar">

@@ -92,15 +92,18 @@ type ButtonProps = {
   title?: string;
   type?: "button" | "submit";
   icon?: ReactNode;
+  /** marker used by the guided tour */
+  tour?: string;
 };
 
 /** A button that shows a spinner while its async handler runs. */
-export function Button({ children, onClick, variant = "secondary", size = "normal", disabled, title, type = "button", icon }: ButtonProps) {
+export function Button({ children, onClick, variant = "secondary", size = "normal", disabled, title, type = "button", icon, tour }: ButtonProps) {
   const [busy, setBusy] = useState(false);
   return (
     <button
       type={type}
       className={`btn ${variant} ${size}`}
+      data-tour={tour}
       disabled={disabled || busy}
       title={title}
       onClick={async () => {
@@ -119,16 +122,16 @@ export function Button({ children, onClick, variant = "secondary", size = "norma
 }
 
 /** An AI action. When no AI is connected it explains how to connect instead of failing. */
-export function AiButton({ children, onClick, disabled, size = "normal", title, variant = "secondary" }: Omit<ButtonProps, "icon">) {
+export function AiButton({ children, onClick, disabled, size = "normal", title, variant = "secondary", tour }: Omit<ButtonProps, "icon">) {
   const { aiReady, openSettings } = useApp();
   if (!aiReady) {
     return (
-      <button type="button" className={`btn ai ${size} not-ready`} onClick={() => openSettings("ai")} title="Connect an AI provider to use this">
+      <button type="button" className={`btn ai ${size} not-ready`} data-tour={tour} onClick={() => openSettings("ai")} title="Connect an AI provider to use this">
         <Sparkles size={15} /> {children}
       </button>
     );
   }
-  return <Button variant={variant} size={size} disabled={disabled} onClick={onClick} title={title} icon={<Sparkles size={15} />}>{children}</Button>;
+  return <Button variant={variant} size={size} disabled={disabled} onClick={onClick} title={title} tour={tour} icon={<Sparkles size={15} />}>{children}</Button>;
 }
 
 export function EmptyState({ icon, title, children }: { icon?: ReactNode; title: string; children?: ReactNode }) {

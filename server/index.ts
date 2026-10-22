@@ -6,7 +6,8 @@ import { fileURLToPath } from "node:url";
 import express, { type NextFunction, type Request, type Response } from "express";
 import type { LlmSettings, MediaFile, PublicSettings, Settings, SttSettings, Study, Transcript } from "../shared/types";
 import { emptyStudy, makeId, newSegment, nowIso } from "../shared/util";
-import { LLM_PROVIDERS, listModels, testConnection } from "./ai";
+import { LLM_PROVIDERS, listModels, recommendedModel, testConnection } from "./ai";
+import { configureNetwork, networkStatus } from "./network";
 import { draftTopline, extractDesign, extractSegments, fillGrid, segmentReport, structureGuide, suggestClusters, synthesiseRow } from "./analysis";
 import { extractDocumentText, spreadsheetRows } from "./documents";
 import { gridWorkbook, toplineDocx, toplineMarkdown } from "./exports";
@@ -56,6 +57,7 @@ async function publicSettings(): Promise<PublicSettings> {
     llmKeySet: Boolean(settings.llm.apiKey),
     sttKeySet: Boolean(settings.stt.apiKey),
     ffmpegAvailable: await ffmpegAvailable(),
+    network: networkStatus(),
   };
 }
 
@@ -88,13 +90,32 @@ app.get("/api/settings", async (_req, res) => { res.json(await publicSettings())
 app.put("/api/settings", async (req, res) => {
   const saved = await getSettings();
   const body = req.body as Partial<Settings>;
+  const proxy = typeof body.proxy === "string" ? body.proxy.trim() : saved.proxy ?? "";
   await saveSettings({
     onboarded: body.onboarded ?? saved.onboarded,
     demoSeeded: saved.demoSeeded,
+    proxy,
     llm: mergeLlm(saved.llm, body.llm),
     stt: mergeStt(saved.stt, body.stt),
   });
+  if (proxy !== (saved.proxy ?? "")) await configureNetwork(proxy);
   res.json(await publicSettings());
+});
+
+/** One step for the user: check the key, choose a model if none is set, test it, and save. */
+app.post("/api/ai/connect", async (req, res) => {
+  const saved = await getSettings();
+  const llm = mergeLlm(saved.llm, req.body);
+  if (!llm.provider) throw new HttpError(400, "Choose an AI provider first.");
+  let model = llm.model;
+  if (!model) {
+    const models = await listModels(llm);
+    model = recommendedModel(llm.provider, models);
+    if (!model) throw new HttpError(400, llm.provider === "ollama" ? "Ollama has no models yet. Open a terminal and run: ollama pull qwen3" : "No models are available for this key.");
+  }
+  const reply = await testConnection({ ...llm, model });
+  await saveSettings({ ...saved, llm: { ...llm, model } });
+  res.json({ settings: await publicSettings(), model, reply });
 });
 
 app.get("/api/providers", (_req, res) => { res.json({ llm: LLM_PROVIDERS, stt: STT_PROVIDERS }); });
@@ -361,6 +382,7 @@ function openBrowser(url: string) {
 }
 
 await ensureDataDir();
+await configureNetwork((await getSettings()).proxy ?? "");
 // Preload the demo study once, on a fresh install. Deleting it later is respected.
 {
   const settings = await getSettings();

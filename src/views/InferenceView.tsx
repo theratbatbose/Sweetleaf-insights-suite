@@ -137,6 +137,7 @@ export function InferenceView({ study, update, flush, goTo }: ViewProps) {
         <div
           ref={canvasRef}
           className={`canvas mode-${mode}`}
+          data-tour="canvas"
           onPointerDown={(event) => {
             if (mode === "lasso") {
               const p = point(event);

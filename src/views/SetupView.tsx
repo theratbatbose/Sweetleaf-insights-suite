@@ -141,12 +141,12 @@ export function SetupView({ study, update, goTo }: ViewProps) {
             <div><div className="eyebrow">Step 3</div><h2>Discussion guide → analysis framework</h2><p>Each guide question becomes a row in the analysis grid. Upload the guide, structure it, then tidy the wording.</p></div>
           </div>
           <DocumentSource label="Discussion guide" text={study.design.guideText} onText={(guideText) => setDesign({ guideText })} placeholder="Paste the discussion guide here…" />
-          <div className="row-actions">
+          <div className="row-actions" data-tour="guide-structure">
             <AiButton variant="primary" disabled={!study.design.guideText.trim()} onClick={action(async () => replaceGuide((await api.structureGuide(study.design.guideText)).sections))}>Structure guide with AI</AiButton>
             <Button disabled={!study.design.guideText.trim()} icon={<Wand2 size={15} />} onClick={() => replaceGuide(parseDiscussionGuide(study.design.guideText))}>Structure automatically (no AI)</Button>
             <Button icon={<Plus size={15} />} onClick={() => setGuide((guide) => [...guide, { id: makeId("g"), title: `Section ${guide.length + 1}`, questions: [{ id: makeId("q"), text: "" }] }])}>Add section</Button>
           </div>
-          <div className="guide-editor">
+          <div className="guide-editor" data-tour="guide">
             {study.guide.map((section, sectionIndex) => (
               <div key={section.id} className="guide-section">
                 <div className="guide-section-head">
@@ -185,7 +185,7 @@ export function SetupView({ study, update, goTo }: ViewProps) {
               setImportingPeople(rows);
             })}>Import recruitment list (Excel / CSV)</Button>
           </div>
-          <div className="table-wrap">
+          <div className="table-wrap" data-tour="people">
             <table className="people-table">
               <thead><tr><th>Code</th><th>Name / pseudonym</th><th>Segment</th><th>City</th><th>Age</th><th>Gender</th><th>Session</th><th>Date</th><th>Notes</th><th /></tr></thead>
               <tbody>

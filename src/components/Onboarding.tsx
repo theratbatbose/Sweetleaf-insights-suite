@@ -1,4 +1,5 @@
-import { ArrowRight, HardDrive, ShieldCheck, Sparkles } from "lucide-react";
+import { ArrowRight, HardDrive, PlayCircle, ShieldCheck, Sparkles } from "lucide-react";
+import { TOUR_START_KEY, tourFlag } from "./Tour";
 import { useState } from "react";
 import { api } from "../api";
 import { Button, useApp } from "../ui";
@@ -6,13 +7,22 @@ import { LlmConnect, SttConnect } from "./ConnectAi";
 
 const STEPS = ["Welcome", "Connect your AI", "Transcription", "Ready"];
 
-export function Onboarding({ onDone }: { onDone: () => void }) {
+export function Onboarding({ onDone }: { onDone: (openStudyId?: string) => void }) {
   const { settings, setSettings, aiReady, sttReady } = useApp();
   const [step, setStep] = useState(0);
 
   const finish = async () => {
     setSettings(await api.saveSettings({ onboarded: true }));
     onDone();
+  };
+
+  /** Opens the demo study with the guided tour running. */
+  const startTour = async () => {
+    setSettings(await api.saveSettings({ onboarded: true }));
+    const studies = await api.studies();
+    const demo = studies.find((study) => study.demo) ?? await api.createSample();
+    tourFlag.set(TOUR_START_KEY, "1");
+    onDone(demo.id);
   };
 
   return (
@@ -68,8 +78,17 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
               <li className="ok">A demo study (fictional data) is ready in your studies list, so you can try every feature.</li>
               <li className="ok">Studies are saved in {settings.dataDir}</li>
             </ul>
-            <p className="lead">The workflow: <strong>Setup</strong> (brief, segments, discussion guide, participants) → <strong>Sessions</strong> (recordings, transcripts, notes) → <strong>Grid</strong> (respondent × question) → <strong>Segments</strong> → <strong>Inference</strong> → <strong>Topline</strong>.</p>
-            <div className="row-actions"><Button variant="primary" onClick={finish} icon={<ArrowRight size={15} />}>Open my studies</Button></div>
+            <div className="tour-offer">
+              <PlayCircle size={34} />
+              <div>
+                <strong>New to Sweetleaf? Take the 2-minute tour.</strong>
+                <p>We'll open the demo study and point out each part of the screen, step by step.</p>
+              </div>
+            </div>
+            <div className="row-actions">
+              <Button variant="primary" onClick={startTour} icon={<PlayCircle size={15} />}>Show me around</Button>
+              <Button onClick={finish} icon={<ArrowRight size={15} />}>Skip, go to my studies</Button>
+            </div>
           </div>
         )}
       </div>
