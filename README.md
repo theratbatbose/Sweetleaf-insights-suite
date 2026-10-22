@@ -2,6 +2,7 @@
 
 # Sweetleaf Suite
 
+
 **A workbench for qualitative researchers.** Bring in your brief, screener, discussion guide, transcripts and recordings, and work through to an analysis grid, segment views and a topline, all in one place.
 
 - **Runs on your own computer.** No login, no cloud account. Your files stay on your PC.
