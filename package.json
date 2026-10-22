@@ -1,7 +1,7 @@
 {
   "name": "sweetleaf-suite",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.1.0",
   "type": "module",
   "scripts": {
     "dev": "concurrently -k -n server,app -c green,blue \"tsx watch server/index.ts\" \"vite\"",
@@ -10,7 +10,8 @@
     "start": "node build/server.mjs",
     "typecheck": "tsc -b",
     "test": "vitest run",
-    "launch": "node scripts/launch.mjs"
+    "launch": "node scripts/launch.mjs",
+    "desktop": "npm run build && cd desktop && npm install && npm start"
   },
   "dependencies": {
     "docx": "^9.8.1",

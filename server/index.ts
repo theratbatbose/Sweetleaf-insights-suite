@@ -373,40 +373,85 @@ app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {
   if (!res.headersSent) res.status(status).json({ error: message });
 });
 
+/**
+ * Opens Sweetleaf in its own window where possible: Microsoft Edge or Google Chrome in "app mode"
+ * (no tabs or address bar), falling back to the default browser.
+ */
 function openBrowser(url: string) {
-  const command = process.platform === "win32" ? "cmd" : process.platform === "darwin" ? "open" : "xdg-open";
-  const args = process.platform === "win32" ? ["/c", "start", "", url] : [url];
-  try {
-    spawn(command, args, { stdio: "ignore", detached: true }).on("error", () => undefined).unref();
-  } catch { /* the URL is printed anyway */ }
+  const detached = (command: string, args: string[]) => {
+    try { spawn(command, args, { stdio: "ignore", detached: true, windowsHide: true }).on("error", () => undefined).unref(); } catch { /* URL is printed */ }
+  };
+  if (process.platform === "win32") {
+    const roots = [process.env["ProgramFiles(x86)"], process.env.ProgramFiles, process.env.LOCALAPPDATA].filter(Boolean) as string[];
+    const candidates = roots.flatMap((root) => [
+      path.join(root, "Microsoft", "Edge", "Application", "msedge.exe"),
+      path.join(root, "Google", "Chrome", "Application", "chrome.exe"),
+    ]);
+    const browser = candidates.find((candidate) => existsSync(candidate));
+    if (browser) return detached(browser, [`--app=${url}`]);
+    return detached("cmd", ["/c", "start", "", url]);
+  }
+  if (process.platform === "darwin") {
+    const chrome = "/Applications/Google Chrome.app";
+    if (existsSync(chrome)) return detached("open", ["-na", chrome, "--args", `--app=${url}`]);
+    return detached("open", [url]);
+  }
+  detached("xdg-open", [url]);
 }
 
-await ensureDataDir();
-await configureNetwork((await getSettings()).proxy ?? "");
-// Preload the demo study once, on a fresh install. Deleting it later is respected.
-{
+export type RunningServer = { url: string; port: number; close: () => Promise<void> };
+
+/**
+ * Starts Sweetleaf. The desktop app calls this with { embedded: true } and shows the URL in its own window;
+ * the Start files run this module directly.
+ */
+export async function startServer({ port = PORT, embedded = false, openBrowserWindow = process.env.SWEETLEAF_OPEN === "1" } = {}): Promise<RunningServer> {
+  await ensureDataDir();
+  await configureNetwork((await getSettings()).proxy ?? "");
+  // Preload the demo study once, on a fresh install. Deleting it later is respected.
   const settings = await getSettings();
   if (!settings.demoSeeded) {
     if (!(await listStudies()).length) await createDemoStudy();
     await saveSettings({ ...settings, demoSeeded: true });
   }
-}
-const server = app.listen(PORT, HOST, () => {
-  const url = `http://localhost:${PORT}`;
-  console.log(`\n  Sweetleaf Suite is running at ${url}`);
-  console.log(`  Your studies are saved in ${DATA_DIR}`);
-  console.log("  Keep this window open while you work. Press Ctrl+C to stop.\n");
-  if (!CLIENT_DIR) console.log("  (API only — run `npm run build` first, or use `npm run dev`.)\n");
-  if (process.env.SWEETLEAF_OPEN === "1" && CLIENT_DIR) openBrowser(url);
-});
-server.on("error", (error: NodeJS.ErrnoException) => {
-  if (error.code === "EADDRINUSE") {
-    console.log(`\n  Sweetleaf already seems to be running at http://localhost:${PORT} — opening it.\n`);
-    if (process.env.SWEETLEAF_OPEN === "1") openBrowser(`http://localhost:${PORT}`);
-    process.exit(0);
+
+  const listen = (tryPort: number) => new Promise<import("node:http").Server>((resolve, reject) => {
+    const server = app.listen(tryPort, HOST);
+    server.once("listening", () => resolve(server));
+    server.once("error", reject);
+  });
+
+  let server: import("node:http").Server;
+  try {
+    server = await listen(port);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "EADDRINUSE") throw error;
+    if (!embedded) {
+      console.log(`\n  Sweetleaf already seems to be running at http://localhost:${port} — opening it.\n`);
+      if (openBrowserWindow) openBrowser(`http://localhost:${port}`);
+      process.exit(0);
+    }
+    // The desktop app can use any free port.
+    server = await listen(0);
   }
-  throw error;
-});
-// Long AI calls and large uploads must not be cut off by Node's default timeouts.
-server.requestTimeout = 0;
-server.headersTimeout = 120_000;
+  // Long AI calls and large uploads must not be cut off by Node's default timeouts.
+  server.requestTimeout = 0;
+  server.headersTimeout = 120_000;
+  const actualPort = (server.address() as import("node:net").AddressInfo).port;
+  const url = `http://127.0.0.1:${actualPort}`;
+
+  if (!embedded) {
+    console.log(`\n  Sweetleaf Suite is running at http://localhost:${actualPort}`);
+    console.log(`  Your studies are saved in ${DATA_DIR}`);
+    console.log("  Keep this window open while you work. Press Ctrl+C to stop.\n");
+    if (!CLIENT_DIR) console.log("  (API only — run `npm run build` first, or use `npm run dev`.)\n");
+    if (openBrowserWindow && CLIENT_DIR) openBrowser(`http://localhost:${actualPort}`);
+  }
+  return { url, port: actualPort, close: () => new Promise((resolve) => server.close(() => resolve())) };
+}
+
+// Run directly (node build/server.mjs or the Start files); the desktop app imports it instead.
+const entry = process.argv[1] ? path.resolve(process.argv[1]) : "";
+if (entry && entry === fileURLToPath(import.meta.url) && !process.env.SWEETLEAF_EMBEDDED) {
+  await startServer();
+}

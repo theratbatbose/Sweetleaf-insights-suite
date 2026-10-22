@@ -19,6 +19,17 @@ Environment variables:
 - `SWEETLEAF_OPEN=1` opens the browser on start (the launchers set this)
 - `FFMPEG_PATH` overrides the bundled ffmpeg
 
+## Desktop app
+
+`desktop/` wraps the same server and UI in Electron. The server runs inside the app (`startServer({ embedded: true })`) and the window loads it from 127.0.0.1.
+
+```bash
+npm run desktop                 # build, then open the desktop app
+cd desktop && npm run dist      # build an installer for this OS into desktop/release/
+```
+
+`scripts/stage-desktop.mjs` copies `build/`, `dist/` and `desktop/main.mjs` into `desktop/app/` with production dependencies only. The `Desktop app` workflow builds Windows (NSIS), macOS (arm64 dmg, ad-hoc signed) and Linux (AppImage) on every push. On `main` it publishes them to the GitHub Release `v<version>` as `Sweetleaf-Setup.exe`, `Sweetleaf-mac.dmg` and `Sweetleaf-linux.AppImage`. Bump `version` in `package.json` for a new release.
+
 ## Layout
 
 - `server/index.ts`: routes, localhost-only protections (Host header check; `x-sweetleaf` header required on writes)

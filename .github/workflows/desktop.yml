@@ -1,0 +1,77 @@
+name: Desktop app
+
+# Builds the Windows installer, Mac app and Linux AppImage on every push.
+# On main, publishes them as the latest GitHub Release with fixed file names, so links like
+# https://github.com/<owner>/<repo>/releases/latest/download/Sweetleaf-Setup.exe always work.
+
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: desktop-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            desktop/package-lock.json
+      - name: Build Sweetleaf
+        run: |
+          npm ci
+          npm run build
+      - name: Package the desktop app
+        working-directory: desktop
+        run: |
+          npm ci
+          npm run dist
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sweetleaf-${{ matrix.os }}
+          path: desktop/release/Sweetleaf-*
+          if-no-files-found: error
+
+  release:
+    if: github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - id: version
+        run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.version }}
+          name: Sweetleaf Suite ${{ steps.version.outputs.version }}
+          target_commitish: ${{ github.sha }}
+          make_latest: "true"
+          files: artifacts/*
+          body: |
+            ## Download
+
+            - **Windows:** [Sweetleaf-Setup.exe](https://github.com/${{ github.repository }}/releases/latest/download/Sweetleaf-Setup.exe). Double-click it. If Windows says "Windows protected your PC", click **More info → Run anyway**.
+            - **Mac (Apple Silicon, experimental):** [Sweetleaf-mac.dmg](https://github.com/${{ github.repository }}/releases/latest/download/Sweetleaf-mac.dmg). Open it, drag Sweetleaf to Applications, then right-click the app → **Open**.
+            - **Linux:** [Sweetleaf-linux.AppImage](https://github.com/${{ github.repository }}/releases/latest/download/Sweetleaf-linux.AppImage)
+
+            No Node.js needed. Your studies are kept in the `SweetleafData` folder in your user folder and stay put when you update.

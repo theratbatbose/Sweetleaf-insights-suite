@@ -1,4 +1,5 @@
 import { execFile } from "node:child_process";
+import tls from "node:tls";
 import { Agent, EnvHttpProxyAgent, setGlobalDispatcher } from "undici";
 
 /**
@@ -56,8 +57,26 @@ function normaliseProxy(value: string) {
   return /^[a-z]+:\/\//i.test(trimmed) ? trimmed : `http://${trimmed}`;
 }
 
+/**
+ * Trust the certificates installed on this computer as well as Node's built-in list, so antivirus or
+ * office networks that inspect HTTPS don't break AI requests. Works without command-line flags on
+ * Node 22.19+/24.5+ (and inside the desktop app); older versions rely on the Start file's flag.
+ */
+function trustSystemCertificates() {
+  const api = tls as typeof tls & { getCACertificates?: (type: string) => string[]; setDefaultCACertificates?: (certs: string[]) => void };
+  if (typeof api.getCACertificates !== "function" || typeof api.setDefaultCACertificates !== "function") return status.systemCertificates;
+  try {
+    const merged = [...new Set([...api.getCACertificates("default"), ...api.getCACertificates("system")])];
+    api.setDefaultCACertificates(merged);
+    return true;
+  } catch {
+    return status.systemCertificates;
+  }
+}
+
 /** Applies the proxy (from Settings, then environment, then Windows) to every outgoing request. */
 export async function configureNetwork(settingsProxy = "") {
+  status = { ...status, systemCertificates: trustSystemCertificates() };
   const envProxy = process.env.HTTPS_PROXY || process.env.https_proxy || process.env.HTTP_PROXY || process.env.http_proxy || "";
   const windows = settingsProxy || envProxy ? { server: "", autoConfig: "" } : await windowsProxy();
   const proxy = normaliseProxy(settingsProxy || envProxy || windows.server);
