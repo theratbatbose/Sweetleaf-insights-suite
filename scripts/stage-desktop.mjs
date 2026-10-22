@@ -19,7 +19,7 @@ mkdirSync(path.join(stage, "build"), { recursive: true });
 cpSync(path.join(root, "build", "server.mjs"), path.join(stage, "build", "server.mjs"));
 cpSync(path.join(root, "dist"), path.join(stage, "dist"), { recursive: true });
 cpSync(path.join(desktop, "main.mjs"), path.join(stage, "main.mjs"));
-cpSync(path.join(desktop, "build", "icon.png"), path.join(stage, "icon.png"));
+cpSync(path.join(desktop, "assets", "icon.png"), path.join(stage, "icon.png"));
 
 const rootPackage = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8"));
 // The UI libraries are already compiled into dist/; only the server's packages are needed at runtime.

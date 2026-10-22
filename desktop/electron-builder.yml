@@ -4,7 +4,7 @@ copyright: Sweetleaf Suite
 directories:
   app: app
   output: release
-  buildResources: build
+  buildResources: assets
 asar: true
 # ffmpeg is a program, so it must sit outside the app archive to be runnable.
 asarUnpack:
@@ -13,7 +13,7 @@ win:
   target:
     - target: nsis
       arch: [x64]
-  icon: build/icon.png
+  icon: assets/icon.png
   artifactName: Sweetleaf-Setup.${ext}
 nsis:
   oneClick: false
@@ -27,7 +27,7 @@ mac:
   target:
     - target: dmg
       arch: [arm64]
-  icon: build/icon.png
+  icon: assets/icon.png
   category: public.app-category.productivity
   # Not signed with an Apple Developer ID; "-" gives an ad-hoc signature so Apple Silicon Macs can run it.
   identity: "-"
@@ -35,7 +35,7 @@ mac:
   artifactName: Sweetleaf-mac.${ext}
 linux:
   target: [AppImage]
-  icon: build/icon.png
+  icon: assets/icon.png
   category: Office
   artifactName: Sweetleaf-linux.${ext}
 # Everything the app needs is staged into app/ with production dependencies already installed.
