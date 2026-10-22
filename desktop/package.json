@@ -1,0 +1,14 @@
+{
+  "name": "sweetleaf-desktop",
+  "private": true,
+  "description": "Builds the Sweetleaf Suite desktop app (Windows installer, Mac and Linux apps).",
+  "scripts": {
+    "stage": "node ../scripts/stage-desktop.mjs",
+    "start": "npm run stage && electron app",
+    "dist": "npm run stage && electron-builder --publish never"
+  },
+  "devDependencies": {
+    "electron": "38.8.6",
+    "electron-builder": "26.15.3"
+  }
+}

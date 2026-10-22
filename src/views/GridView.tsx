@@ -105,13 +105,13 @@ export function GridView({ study, update, flush, transcriptIndex, goTo }: ViewPr
             {study.segments.map((segment) => <option key={segment.id} value={segment.id}>{segment.name}</option>)}
           </select>
           <label className="toggle"><input type="checkbox" checked={showQuotes} onChange={(event) => setShowQuotes(event.target.checked)} /> Show quotes</label>
-          <AiButton variant="primary" disabled={Boolean(filling)} onClick={() => fillParticipants(participants, true)}>Fill empty cells with AI</AiButton>
-          <a className="btn secondary" href={api.exportUrl(study.id, "grid.xlsx")} onClick={() => { void flush(); }}><Download size={15} /> Excel</a>
+          <AiButton variant="primary" tour="grid-fill" disabled={Boolean(filling)} onClick={() => fillParticipants(participants, true)}>Fill empty cells with AI</AiButton>
+          <a className="btn secondary" data-tour="grid-excel" href={api.exportUrl(study.id, "grid.xlsx")} onClick={() => { void flush(); }}><Download size={15} /> Excel</a>
         </div>
       </div>
       {filling && <div className="fill-status"><span>AI is reading transcripts — {filling.done} of {filling.total} respondents done{filling.done < filling.total ? ` (working on ${filling.label})` : ""}. You can keep working in other tabs.</span><Progress value={(filling.done + 0.3) / filling.total} /></div>}
 
-      <div className="grid-scroll">
+      <div className="grid-scroll" data-tour="grid">
         <table className="analysis-grid">
           <thead>
             <tr>

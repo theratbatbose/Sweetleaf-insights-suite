@@ -22,10 +22,11 @@ const s = (id: string) => `/api/studies/${encodeURIComponent(id)}`;
 
 export const api = {
   settings: () => request<PublicSettings>("GET", "/api/settings"),
-  saveSettings: (update: { onboarded?: boolean; llm?: Partial<LlmSettings>; stt?: Partial<SttSettings> }) => request<PublicSettings>("PUT", "/api/settings", update),
+  saveSettings: (update: { onboarded?: boolean; proxy?: string; llm?: Partial<LlmSettings>; stt?: Partial<SttSettings> }) => request<PublicSettings>("PUT", "/api/settings", update),
   providers: () => request<{ llm: ProviderInfo[]; stt: ProviderInfo[] }>("GET", "/api/providers"),
   listModels: (llm: Partial<LlmSettings>) => request<{ models: string[] }>("POST", "/api/ai/models", llm),
   testLlm: (llm: Partial<LlmSettings>) => request<{ reply: string }>("POST", "/api/ai/test", llm),
+  connectLlm: (llm: Partial<LlmSettings>) => request<{ settings: PublicSettings; model: string; reply: string }>("POST", "/api/ai/connect", llm),
   testStt: (stt: Partial<SttSettings>) => request<{ ok: boolean }>("POST", "/api/stt/test", stt),
 
   studies: () => request<StudySummary[]>("GET", "/api/studies"),

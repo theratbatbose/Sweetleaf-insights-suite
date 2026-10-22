@@ -18,7 +18,8 @@ export const STT_PROVIDERS: { id: SttProviderId; label: string; defaultBaseUrl: 
 const CHUNK_SECONDS = 600;
 
 function findFfmpeg(): string | null {
-  const bundled = ffmpegStatic as unknown as string | null;
+  // Inside the desktop app the binary is unpacked next to the app archive.
+  const bundled = (ffmpegStatic as unknown as string | null)?.replace(`app.asar${path.sep}`, `app.asar.unpacked${path.sep}`);
   if (bundled && existsSync(bundled)) return bundled;
   return process.env.FFMPEG_PATH || null;
 }

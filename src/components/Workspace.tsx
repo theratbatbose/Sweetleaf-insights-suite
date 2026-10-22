@@ -1,5 +1,5 @@
-import { ArrowLeft, Check, CloudOff, Loader2 } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { ArrowLeft, Check, CloudOff, Loader2, PlayCircle } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { Study } from "../../shared/types";
 import { allQuestions } from "../../shared/util";
 import { api } from "../api";
@@ -11,6 +11,7 @@ import { SegmentsView } from "../views/SegmentsView";
 import { SessionsView } from "../views/SessionsView";
 import { SetupView } from "../views/SetupView";
 import { ToplineView } from "../views/ToplineView";
+import { DEMO_TOUR, Tour, TOUR_DONE_KEY, TOUR_START_KEY, tourFlag } from "./Tour";
 
 export type Tab = "setup" | "sessions" | "grid" | "segments" | "inference" | "topline";
 export const TABS: { id: Tab; label: string }[] = [
@@ -47,6 +48,21 @@ export function Workspace({ studyId, tab, onTab, onExit }: { studyId: string; ta
   const { study, loadError, saveState, update, flush } = useStudy(studyId, onError);
   const [transcriptIndex, setTranscriptIndex] = useState<TranscriptIndex>({});
   const [focus, setFocus] = useState<ViewProps["focus"]>(null);
+
+  // Guided tour: starts by itself the first time the demo study is opened, or when asked for.
+  const [tourIndex, setTourIndex] = useState<number | null>(null);
+  const tourChecked = useRef(false);
+  useEffect(() => {
+    if (!study || tourChecked.current) return;
+    tourChecked.current = true;
+    const requested = tourFlag.get(TOUR_START_KEY) === "1";
+    if (requested) tourFlag.remove(TOUR_START_KEY);
+    if (study.demo && (requested || tourFlag.get(TOUR_DONE_KEY) !== "1")) setTourIndex(0);
+  }, [study]);
+  const endTour = () => {
+    setTourIndex(null);
+    tourFlag.set(TOUR_DONE_KEY, "1");
+  };
 
   const refreshTranscripts = useCallback(async () => {
     try { setTranscriptIndex(await api.transcriptIndex(studyId)); } catch { /* shown elsewhere */ }
@@ -88,12 +104,15 @@ export function Workspace({ studyId, tab, onTab, onExit }: { studyId: string; ta
 
       {study.demo && (
         <div className="demo-banner">
-          <strong>Demo study.</strong> Fictional data, with every step already filled in. Click around, edit anything, try the AI buttons.
-          Delete it from the <button className="link-btn" onClick={async () => { await flush(); onExit(); }}>Studies page</button> (bin icon) when you're done.
+          <div>
+            <strong>Demo study.</strong> Fictional data, with every step already filled in. Click around, edit anything, try the AI buttons.
+            Delete it from the <button className="link-btn" onClick={async () => { await flush(); onExit(); }}>Studies page</button> (bin icon) when you're done.
+          </div>
+          <button className="btn primary small" onClick={() => setTourIndex(0)}><PlayCircle size={15} /> Take the guided tour</button>
         </div>
       )}
 
-      <nav className="phase-tabs" aria-label="Study workflow">
+      <nav className="phase-tabs" aria-label="Study workflow" data-tour="tabs">
         {TABS.map((entry, index) => (
           <button key={entry.id} className={`phase-tab ${tab === entry.id ? "active" : ""}`} onClick={() => goTo(entry.id)}>
             <span className="step-no">{index + 1}</span>
@@ -110,6 +129,10 @@ export function Workspace({ studyId, tab, onTab, onExit }: { studyId: string; ta
         {tab === "inference" && <InferenceView {...props} />}
         {tab === "topline" && <ToplineView {...props} />}
       </div>
+
+      {tourIndex !== null && (
+        <Tour steps={DEMO_TOUR} index={tourIndex} onIndex={setTourIndex} onClose={endTour} onTab={(next) => goTo(next)} currentTab={tab} />
+      )}
     </div>
   );
 }

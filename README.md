@@ -1,3 +1,5 @@
+<img src="docs/images/icon.png" alt="" width="88" align="right">
+
 # Sweetleaf Suite
 
 **A workbench for qualitative researchers.** Bring in your brief, screener, discussion guide, transcripts and recordings, and work through to an analysis grid, segment views and a topline, all in one place.
@@ -9,44 +11,68 @@
 
 ![The analysis grid](docs/images/6-grid.png)
 
+### What's new in 1.1
+
+- **A real desktop app for Windows.** One installer, its own window and Start-menu icon. No Node.js and no black window.
+- **One-click AI connection.** Pick Claude, ChatGPT models or Gemini, paste your key and click **Connect**. Sweetleaf picks a model and tests it for you.
+- **Works on office networks.** Uses your computer's proxy and security certificates, and explains connection problems in plain English.
+- **A guided tour** of the demo study, so new researchers can learn the whole workflow in two minutes.
+
 ---
 
 ## Download
 
-### [⬇ Download Sweetleaf (ZIP)](https://github.com/theratbatbose/Sweetleaf-insights-suite/archive/refs/heads/main.zip)
+### Windows: [⬇ Download Sweetleaf for Windows](https://github.com/theratbatbose/Sweetleaf-insights-suite/releases/latest/download/Sweetleaf-Setup.exe)
 
-Works on Windows and Mac. Free.
+A normal desktop app with its own window and Start-menu icon. **Nothing else to install.**
+
+<sub>Mac (Apple Silicon, experimental): [Sweetleaf-mac.dmg](https://github.com/theratbatbose/Sweetleaf-insights-suite/releases/latest/download/Sweetleaf-mac.dmg) · Linux: [AppImage](https://github.com/theratbatbose/Sweetleaf-insights-suite/releases/latest/download/Sweetleaf-linux.AppImage) · Any computer: [ZIP version](#other-option-the-zip-version-any-computer)</sub>
 
 ---
 
-## Set it up (one time, about 10 minutes)
+## Set it up (one time, about 2 minutes)
 
-**1. Install Node.js.** Sweetleaf needs it to run.
-- Go to **[nodejs.org](https://nodejs.org)** and click the big green **LTS** button.
-- Open the downloaded file and click **Next** until it finishes.
+**1. Run the installer.** Double-click **`Sweetleaf-Setup.exe`** in your Downloads folder.
+- Windows may say **"Windows protected your PC"**. Click **More info** → **Run anyway**. Windows shows this for apps from small developers; it only happens once.
+- Click **Next** → **Install**. Sweetleaf opens by itself when it's done.
 
-**2. Unzip Sweetleaf.**
-- Find the ZIP you downloaded, right-click it and choose **Extract All** (on a Mac, double-click it).
-- Move the folder somewhere easy to find, such as **Documents**.
-
-**3. Start Sweetleaf.**
-- **Windows:** open the folder and double-click **`Start Sweetleaf.bat`**.
-- **Mac:** right-click **`start-sweetleaf.command`** → **Open** → **Open**.
-
-**What you'll see:**
-- A black window opens. **The first time, it sets itself up for a few minutes.** Messages scroll past, and any that say `warn` are normal.
-- When it's ready, it says **"Sweetleaf Suite is running at http://localhost:4317"** and your browser opens Sweetleaf.
-- **Keep the black window open while you work.** Closing it turns Sweetleaf off.
+**2. From then on**, open **Sweetleaf Suite** from the Start menu or the desktop icon, like any other program. Close the window to quit.
 
 ![Welcome screen](docs/images/1-welcome.png)
 
-**Every time after that:** just double-click the same file again. It starts in seconds.
+**3. Connect your AI and take the tour.** Sweetleaf asks you to connect an AI (or skip it), then offers a **2-minute guided tour**. Click **Show me around**.
+
+![Tour offer](docs/images/12-tour-offer.png)
+
+**Updating:** download and run the installer again. Your studies and settings stay where they are.
+
+<details>
+<summary><strong>Mac</strong> (experimental)</summary>
+
+Open `Sweetleaf-mac.dmg` and drag **Sweetleaf Suite** into **Applications**. The first time, right-click the app → **Open** → **Open**. If macOS says the app "is damaged" (it isn't, it just isn't registered with Apple), use the ZIP version below instead.
+</details>
+
+### Other option: the ZIP version (any computer)
+
+Use this if the installer can't run on your computer. It needs Node.js and keeps a small black window open while you work.
+
+1. Install **Node.js** from **[nodejs.org](https://nodejs.org)** (the green **LTS** button, then **Next** until it finishes).
+2. [Download the ZIP](https://github.com/theratbatbose/Sweetleaf-insights-suite/archive/refs/heads/main.zip), right-click it → **Extract All**, and move the folder somewhere easy, such as **Documents**.
+3. **Windows:** double-click **`Start Sweetleaf.bat`**. **Mac:** right-click **`start-sweetleaf.command`** → **Open**.
+
+The first start sets itself up for a few minutes (messages saying `warn` are normal). Sweetleaf then opens in its own window. **Keep the black window open while you work**; closing it turns Sweetleaf off.
 
 ---
 
 ## Try it in 5 minutes with the demo study
 
-Sweetleaf comes with a **demo study**: a fictional four-interview study on tea-time snacking, with every step already filled in. Open it from your studies list and click through the six tabs:
+Sweetleaf comes with a **demo study**: a fictional four-interview study on tea-time snacking, with every step already filled in.
+
+**The guided tour** starts by itself the first time you open the demo. It dims the screen, highlights one part at a time and explains it. Use **Next** (or the → key). To watch it again, click **Take the guided tour** on the yellow banner inside the demo.
+
+![Guided tour](docs/images/13-tour-tabs.png)
+
+Afterwards, explore on your own. Some things to try on each tab:
 
 | Tab | What to try |
 |---|---|
@@ -61,7 +87,7 @@ Sweetleaf comes with a **demo study**: a fictional four-interview study on tea-t
 
 **Done with it?** Go back to **Studies** and click the 🗑 bin icon on the demo. You can bring it back any time with **Add the demo study** at the bottom of the Studies page.
 
-Want to practise importing files too? The **`examples`** folder inside Sweetleaf has the same study as Word, PDF, Excel and text files. Follow the steps below with those files.
+Want to practise importing files too? Download the **[example files](https://github.com/theratbatbose/Sweetleaf-insights-suite/releases/latest/download/Sweetleaf-example-files.zip)**. It's the same fictional study as a Word brief, screener and guide, an Excel recruitment list, and four transcripts in different vendor formats. Follow the steps below with those files. (They are also in the `examples` folder of the ZIP version.)
 
 ---
 
@@ -114,7 +140,9 @@ Sweetleaf works fully without AI. With AI, the slow parts get faster: structurin
 | **OpenRouter** | [openrouter.ai](https://openrouter.ai/keys) | One key for many AI models |
 | **Ollama** | [ollama.com](https://ollama.com) | Runs on your own PC, so nothing leaves it. Needs a powerful computer. |
 
-**How to connect:** ⚙ → **AI model** → pick a provider → paste the key → **Load models** → choose one → **Test connection** → **Save**.
+**How to connect:** ⚙ (top right) → **AI model** → choose **Claude**, **ChatGPT models** or **Gemini**. Sweetleaf shows the steps to get a key and a button that opens the right website. Paste the key and click **Connect**. Sweetleaf checks the key, picks a good model and sends a test message, all in one go.
+
+![Connecting AI](docs/images/2-connect-ai.png)
 
 Good to know:
 - **A ChatGPT Plus or Claude Pro subscription is not an API key.** Those plans can't be used by other apps. You need a separate API account.
@@ -128,13 +156,13 @@ Good to know:
 
 ## Everyday questions
 
-**How do I stop Sweetleaf?** Close the black window.
+**How do I stop Sweetleaf?** Close its window. (ZIP version: close the black window.)
 
 **Where is my work saved?** In a folder called **`SweetleafData`** in your user folder (for example `C:\Users\YourName\SweetleafData`). It's separate from the app folder.
 
 **How do I back up?** Copy the whole `SweetleafData` folder to a drive or cloud backup. To move one study to another computer, use **Topline → Study backup (.json)**, then **Import backup** on the other computer.
 
-**How do I update to a new version?** Download the ZIP again, unzip it, and start it the same way. Your studies stay where they are. You can delete the old app folder.
+**How do I update to a new version?** Download and run the installer again (ZIP version: download the ZIP again and start it the same way). Your studies and AI settings stay where they are.
 
 **Can my team share a study?** Not yet. Each person runs Sweetleaf on their own computer. Share Excel and Word exports, or send a study backup file.
 
@@ -144,14 +172,16 @@ Good to know:
 
 | What you see | What to do |
 |---|---|
-| **"Windows protected your PC"** | Click **More info** → **Run anyway**. Windows shows this for any downloaded file. |
-| **"How do you want to open this file?"** | Close it. Double-click **`Start Sweetleaf.bat`** again, or right-click it → **Open**. |
-| **"Node.js is not installed"** | Do step 1 of setup, then try again. |
-| **Lots of `npm warn` messages** | Normal. Wait. |
-| **The browser didn't open** | Open Chrome or Edge and go to **localhost:4317**. |
-| **"This site can't be reached"** | Sweetleaf isn't running. Double-click the start file and keep the black window open. |
-| **A video won't play** | Use Chrome or Edge, or convert the video to MP4. It can still be transcribed. |
-| **"API key was rejected" / "no credit"** | Paste the key again in ⚙ → AI model, or add credit in your AI provider's billing page. |
+| **"Windows protected your PC"** | Click **More info** → **Run anyway**. Windows shows this for apps that aren't from big publishers. |
+| **ZIP version: "Node.js is not installed"** | Install Node.js from nodejs.org, then try again. |
+| **ZIP version: lots of `npm warn` messages** | Normal. Wait. |
+| **ZIP version: "This site can't be reached"** | Sweetleaf isn't running. Double-click the Start file and keep the black window open. |
+| **A video won't play** | Convert it to MP4 (most video tools have "Save as MP4"). It can still be transcribed as it is. ZIP version: use Chrome or Edge. |
+| **"API key was rejected"** | Copy the key again (the whole thing) from the provider's website. A ChatGPT Plus or Claude Pro login is **not** an API key. |
+| **"No credit or billing is not set up"** | Add credit on your AI provider's billing page, then click **Connect** again. |
+| **"couldn't find api…" or "blocked or cut off"** | Usually an office network, VPN or firewall. Try a phone hotspot to check. If it works there, ask IT to allow the AI website, or enter your office proxy under ⚙ → AI model → **Advanced**. Sweetleaf uses your Windows proxy automatically. |
+| **"A security certificate … wasn't trusted"** | Usually antivirus or an office network. Use the Windows app (it trusts your computer's certificates), or ask IT. |
+| **The Connect button is greyed out** | Paste your key in the box first. |
 | **A file won't import** | Old `.doc` files: open in Word → *Save As* → `.docx`. Scanned PDFs: ask for the Word version. |
 
 Still stuck? [Open an issue](https://github.com/theratbatbose/Sweetleaf-insights-suite/issues) with a screenshot.

@@ -66,7 +66,7 @@ export function SegmentsView({ study, update, flush, goTo }: ViewProps) {
         {members.length > 0 && filled === 0 && <p className="hint-box">The AI draft works best after the analysis grid is filled for these respondents. Without it, the AI reads raw transcripts.</p>}
 
         {report && (
-          <div className="report-grid">
+          <div className="report-grid" data-tour="segment-report">
             <section className="report-section">
               <Field label="Recurring themes" hint="Comma-separated">
                 <input value={report.recurring.join(", ")} onChange={(event) => setReport({ recurring: event.target.value.split(",").map((item) => item.trimStart()).filter((item, index, list) => item || index === list.length - 1) })} />

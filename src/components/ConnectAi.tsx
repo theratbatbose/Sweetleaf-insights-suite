@@ -1,126 +1,230 @@
-import { CheckCircle2, Cloud, ExternalLink, HardDrive, KeyRound } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Cloud, ExternalLink, HardDrive, KeyRound, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { LlmProviderId, PublicSettings, SttProviderId } from "../../shared/types";
 import { api, type ProviderInfo } from "../api";
 import { Button, Field, useApp } from "../ui";
 
 const LOCAL_PROVIDERS = new Set(["ollama", "openai-compatible"]);
+const MAIN_PROVIDERS = ["anthropic", "openai", "gemini"];
 
-const PROVIDER_NOTES: Record<string, string> = {
-  anthropic: "Claude models via an API key from the Anthropic Console. (Claude Pro/Max chat subscriptions can't be used by other apps.)",
-  openai: "GPT models via an API key from the OpenAI Platform. (A ChatGPT Plus subscription is separate and does not include API access.)",
-  gemini: "Gemini models via a key from Google AI Studio. Use a key with billing enabled for client work: on the free tier Google may use your prompts to improve its products.",
-  openrouter: "One key gives access to Claude, GPT, Gemini, Llama and more. Pay-as-you-go.",
-  ollama: "Runs open models entirely on this computer. Nothing leaves the machine. Needs a reasonably powerful PC.",
-  "openai-compatible": "Any server that speaks the OpenAI API: LM Studio, vLLM, Groq, Together, or your organisation's gateway.",
+type Guide = { name: string; blurb: string; url: string; site: string; steps: string[]; keyHint: string; keyPattern?: RegExp };
+
+const GUIDES: Record<string, Guide> = {
+  anthropic: {
+    name: "Claude", blurb: "by Anthropic", url: "https://console.anthropic.com/settings/keys", site: "console.anthropic.com",
+    steps: ["Sign in or sign up (this is separate from a Claude Pro subscription).", "Go to Settings → API keys → Create key.", "Add some credit under Billing. The key won't work without it.", "Copy the key."],
+    keyHint: "Starts with sk-ant-", keyPattern: /^sk-ant-/,
+  },
+  openai: {
+    name: "ChatGPT models", blurb: "by OpenAI", url: "https://platform.openai.com/api-keys", site: "platform.openai.com",
+    steps: ["Sign in at the OpenAI Platform (separate from ChatGPT Plus).", "Click Create new secret key.", "Add some credit under Settings → Billing.", "Copy the key."],
+    keyHint: "Starts with sk-", keyPattern: /^sk-/,
+  },
+  gemini: {
+    name: "Gemini", blurb: "by Google", url: "https://aistudio.google.com/apikey", site: "aistudio.google.com",
+    steps: ["Sign in with your Google account.", "Click Create API key.", "For client work, set up billing: on the free tier Google may use your prompts to improve its products.", "Copy the key."],
+    keyHint: "Starts with AIza", keyPattern: /^AIza/,
+  },
+  openrouter: {
+    name: "OpenRouter", blurb: "one key, many AI models", url: "https://openrouter.ai/keys", site: "openrouter.ai",
+    steps: ["Sign in at openrouter.ai.", "Add some credit.", "Create a key and copy it."],
+    keyHint: "Starts with sk-or-", keyPattern: /^sk-or-/,
+  },
+  ollama: {
+    name: "Ollama", blurb: "free, runs on this computer", url: "https://ollama.com/download", site: "ollama.com",
+    steps: ["Download and install Ollama.", "Open a terminal and run:  ollama pull qwen3", "Leave Ollama running, then click Connect below."],
+    keyHint: "",
+  },
+  "openai-compatible": {
+    name: "Your own server", blurb: "LM Studio, Groq, your company's AI gateway…", url: "", site: "",
+    steps: ["Enter the server address under Advanced (for LM Studio, start its local server first).", "Paste a key if the server needs one."],
+    keyHint: "",
+  },
 };
 
+function cleanKey(value: string) {
+  return value.trim().replace(/^["'`]+|["'`]+$/g, "").replace(/\s+/g, "");
+}
+
 export function LlmConnect({ onSaved, compact = false }: { onSaved?: (settings: PublicSettings) => void; compact?: boolean }) {
-  const { settings, setSettings, notify } = useApp();
+  const { settings, setSettings, notify, aiReady } = useApp();
   const [providers, setProviders] = useState<ProviderInfo[]>([]);
+  const [editing, setEditing] = useState(!aiReady);
   const [provider, setProvider] = useState<LlmProviderId | null>(settings.llm.provider);
-  const [apiKey, setApiKey] = useState(settings.llm.apiKey);
+  const [apiKey, setApiKey] = useState("");
+  const [showKey, setShowKey] = useState(false);
   const [baseUrl, setBaseUrl] = useState(settings.llm.baseUrl);
-  const [model, setModel] = useState(settings.llm.model);
+  const [model, setModel] = useState("");
   const [models, setModels] = useState<string[]>([]);
-  const [status, setStatus] = useState<{ ok: boolean; text: string } | null>(null);
+  const [proxy, setProxy] = useState(settings.proxy ?? "");
+  const [more, setMore] = useState(Boolean(settings.llm.provider && !MAIN_PROVIDERS.includes(settings.llm.provider)));
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null);
 
   useEffect(() => { api.providers().then((data) => setProviders(data.llm)).catch(() => undefined); }, []);
 
   const info = providers.find((entry) => entry.id === provider);
-  const sameProvider = provider === settings.llm.provider;
-  const draft = { provider, apiKey: sameProvider ? apiKey : apiKey.startsWith("••••") ? "" : apiKey, baseUrl, model };
+  const guide = provider ? GUIDES[provider] : null;
+  const keySaved = provider === settings.llm.provider && settings.llmKeySet;
+  const needsKey = provider !== "ollama" && provider !== "openai-compatible";
+  const key = cleanKey(apiKey);
+  const keyWarning = key && guide?.keyPattern && !guide.keyPattern.test(key)
+    ? `This doesn't look like a ${guide.name} API key (${guide.keyHint.toLowerCase()}). Check you copied the API key, not a password or chat login.`
+    : "";
 
   const choose = (id: LlmProviderId) => {
     setProvider(id);
-    setStatus(null);
+    setResult(null);
     setModels([]);
-    if (id === settings.llm.provider) {
-      setApiKey(settings.llm.apiKey);
-      setBaseUrl(settings.llm.baseUrl);
-      setModel(settings.llm.model);
-    } else {
+    setApiKey("");
+    setModel(id === settings.llm.provider ? settings.llm.model : "");
+    setBaseUrl(id === settings.llm.provider ? settings.llm.baseUrl : "");
+  };
+
+  const draft = () => ({ provider, apiKey: key || undefined, baseUrl, model });
+
+  const connect = async () => {
+    setBusy(true);
+    setResult(null);
+    try {
+      if (proxy !== (settings.proxy ?? "")) setSettings(await api.saveSettings({ proxy }));
+      const { settings: saved, model: chosen } = await api.connectLlm(draft());
+      setSettings(saved);
+      setModel(chosen);
       setApiKey("");
-      setBaseUrl("");
-      setModel(providers.find((entry) => entry.id === id)?.defaultModel ?? "");
+      setResult({ ok: true, text: `Connected to ${guide?.name ?? "your AI"} using the model “${chosen}”.` });
+      notify("AI connected.", "success");
+      onSaved?.(saved);
+      window.setTimeout(() => setEditing(false), 1200);
+    } catch (error) {
+      setResult({ ok: false, text: (error as Error).message });
+    } finally {
+      setBusy(false);
     }
   };
 
   const loadModels = async () => {
     try {
-      const { models: list } = await api.listModels(draft);
+      const { models: list } = await api.listModels(draft());
       setModels(list);
-      if (!list.length) notify("No models found. For Ollama, download one first, e.g. `ollama pull qwen3`.", "info");
-      else if (!model || !list.includes(model)) setModel(list[0]);
+      if (!list.length) notify("No models found for this key.", "info");
     } catch (error) {
-      notify((error as Error).message, "error");
+      setResult({ ok: false, text: (error as Error).message });
     }
   };
 
-  const test = async () => {
-    setStatus(null);
-    try {
-      const { reply } = await api.testLlm(draft);
-      setStatus({ ok: true, text: `Connected. The model replied: “${reply}”` });
-    } catch (error) {
-      setStatus({ ok: false, text: (error as Error).message });
-    }
-  };
+  if (!editing && aiReady) {
+    const current = GUIDES[settings.llm.provider ?? ""];
+    return (
+      <div className="connected-card">
+        <CheckCircle2 size={22} />
+        <div>
+          <strong>Connected to {current?.name ?? settings.llm.provider}</strong>
+          <span>Model: {settings.llm.model}</span>
+        </div>
+        <span className="spacer" />
+        <Button onClick={async () => {
+          try { const { reply } = await api.testLlm({}); notify(`Still connected. The AI replied “${reply}”.`, "success"); }
+          catch (error) { notify((error as Error).message, "error"); }
+        }}>Test again</Button>
+        <Button onClick={() => setEditing(true)}>Change</Button>
+      </div>
+    );
+  }
 
-  const save = async () => {
-    const saved = await api.saveSettings({ llm: { provider, apiKey: draft.apiKey, baseUrl, model } });
-    setSettings(saved);
-    setApiKey(saved.llm.apiKey);
-    notify("AI connection saved.", "success");
-    onSaved?.(saved);
+  const providerButton = (id: string) => {
+    const entry = GUIDES[id];
+    return (
+      <button key={id} type="button" className={`provider-card ${provider === id ? "selected" : ""}`} onClick={() => choose(id as LlmProviderId)}>
+        <div className="provider-top">
+          <strong>{entry.name}</strong>
+          {LOCAL_PROVIDERS.has(id) ? <span className="pill local"><HardDrive size={12} /> On this PC</span> : <span className="pill"><Cloud size={12} /> Online</span>}
+        </div>
+        <p>{entry.blurb}</p>
+      </button>
+    );
   };
 
   return (
     <div className="connect">
+      <div className="field-label">1. Which AI do you use?</div>
       <div className={`provider-grid ${compact ? "compact" : ""}`}>
-        {providers.map((entry) => (
-          <button key={entry.id} type="button" className={`provider-card ${provider === entry.id ? "selected" : ""}`} onClick={() => choose(entry.id as LlmProviderId)}>
-            <div className="provider-top">
-              <strong>{entry.label}</strong>
-              {LOCAL_PROVIDERS.has(entry.id) ? <span className="pill local"><HardDrive size={12} /> Local</span> : <span className="pill"><Cloud size={12} /> Cloud</span>}
-            </div>
-            {!compact && <p>{PROVIDER_NOTES[entry.id]}</p>}
-          </button>
-        ))}
+        {MAIN_PROVIDERS.map(providerButton)}
+        {more && ["openrouter", "ollama", "openai-compatible"].map(providerButton)}
       </div>
+      {!more && <button className="link-btn" onClick={() => setMore(true)}>More options (OpenRouter, Ollama on this PC, other servers)</button>}
 
-      {info && (
-        <div className="connect-form">
-          {info.needsKey !== false || provider === "openai-compatible" ? (
-            <Field label={provider === "openai-compatible" ? "API key (if the server needs one)" : "API key"} hint={info.keyUrl ? undefined : "Leave empty for local servers."}>
+      {guide && info && (
+        <div className="connect-steps">
+          <div className="connect-step">
+            <div className="field-label">2. {needsKey ? `Get your ${guide.name} API key` : "Get ready"}</div>
+            <ol className="guide-steps">{guide.steps.map((step) => <li key={step}>{step}</li>)}</ol>
+            {guide.url && <a className="btn secondary" href={guide.url} target="_blank" rel="noreferrer"><ExternalLink size={15} /> Open {guide.site}</a>}
+          </div>
+
+          <div className="connect-step">
+            <div className="field-label">3. {needsKey ? "Paste the key and connect" : "Connect"}</div>
+            {(needsKey || provider === "openai-compatible") && (
               <div className="input-row">
                 <KeyRound size={16} />
-                <input type="password" value={apiKey} onChange={(event) => setApiKey(event.target.value)} placeholder="Paste your key" autoComplete="off" spellCheck={false} />
-                {info.keyUrl && <a className="link" href={info.keyUrl} target="_blank" rel="noreferrer">Get a key <ExternalLink size={13} /></a>}
+                <input
+                  className="key-input"
+                  type={showKey ? "text" : "password"}
+                  value={apiKey}
+                  onChange={(event) => setApiKey(event.target.value)}
+                  placeholder={keySaved ? "A key is saved. Paste a new one to replace it" : provider === "openai-compatible" ? "Key (only if the server needs one)" : `Paste your key here${guide.keyHint ? ` (${guide.keyHint.toLowerCase()})` : ""}`}
+                  autoComplete="off"
+                  spellCheck={false}
+                  aria-label="API key"
+                />
+                <button type="button" className="link-btn" onClick={() => setShowKey(!showKey)}>{showKey ? "Hide" : "Show"}</button>
+              </div>
+            )}
+            {keyWarning && <div className="status-line warn-line">{keyWarning}</div>}
+            <div className="row-actions">
+              <Button variant="primary" disabled={busy || (needsKey && !key && !keySaved)} onClick={connect}>{busy ? "Connecting…" : "Connect"}</Button>
+              {busy && <span className="muted-text small"><Loader2 size={14} className="spin" /> Checking the key, choosing a model and sending a test message…</span>}
+            </div>
+            {result && (
+              <div className={`status-line ${result.ok ? "ok" : "bad"}`}>
+                {result.ok ? <CheckCircle2 size={16} /> : <AlertTriangle size={16} />}
+                <div>
+                  <div>{result.text}</div>
+                  {!result.ok && (
+                    <ul className="try-list">
+                      <li>Copy the key again from {guide.site || "the provider"}, the whole thing, and paste it in.</li>
+                      {needsKey && <li>Check the account has credit or billing set up.</li>}
+                      <li>On an office network or VPN, try a phone hotspot to see if the network is blocking it. You can set a proxy under Advanced.</li>
+                    </ul>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <details className="advanced">
+            <summary>Advanced: model, server address, proxy</summary>
+            <Field label="Model" hint="Leave empty and Sweetleaf picks a good one for you.">
+              <div className="input-row">
+                <input list="model-options" value={model} onChange={(event) => setModel(event.target.value)} placeholder="Automatic" spellCheck={false} />
+                <datalist id="model-options">{models.map((entry) => <option key={entry} value={entry} />)}</datalist>
+                <Button size="small" onClick={loadModels}>Show available models</Button>
               </div>
             </Field>
-          ) : (
-            <p className="hint-box">Install Ollama from <a className="link" href={info.keyUrl} target="_blank" rel="noreferrer">ollama.com</a>, then download a model (for example <code>ollama pull qwen3</code>). Sweetleaf talks to it on this computer.</p>
-          )}
-          {(LOCAL_PROVIDERS.has(info.id)) && (
-            <Field label="Server address" hint={`Default: ${info.defaultBaseUrl}`}>
-              <input value={baseUrl} onChange={(event) => setBaseUrl(event.target.value)} placeholder={info.defaultBaseUrl} spellCheck={false} />
+            {LOCAL_PROVIDERS.has(info.id) && (
+              <Field label="Server address" hint={`Default: ${info.defaultBaseUrl}`}>
+                <input value={baseUrl} onChange={(event) => setBaseUrl(event.target.value)} placeholder={info.defaultBaseUrl} spellCheck={false} />
+              </Field>
+            )}
+            <Field label="Proxy (only if your office network needs one)" hint={settings.network.proxy
+              ? `Currently using ${settings.network.proxy} (${settings.network.proxySource === "windows" ? "from Windows settings" : settings.network.proxySource === "environment" ? "from this computer's settings" : "set here"}).`
+              : "None detected. Ask IT for the address, e.g. http://proxy.company.com:8080"}>
+              <input value={proxy} onChange={(event) => setProxy(event.target.value)} placeholder="Automatic" spellCheck={false} />
             </Field>
-          )}
-          <Field label="Model" hint={info.defaultModel ? `Suggested: ${info.defaultModel}. Larger models give better analysis but cost more.` : "Load the list to choose a model."}>
-            <div className="input-row">
-              <input list="model-options" value={model} onChange={(event) => setModel(event.target.value)} placeholder="Model name" spellCheck={false} />
-              <datalist id="model-options">{models.map((entry) => <option key={entry} value={entry} />)}</datalist>
-              <Button size="small" onClick={loadModels}>Load models</Button>
-            </div>
-          </Field>
-          {status && <div className={`status-line ${status.ok ? "ok" : "bad"}`}>{status.ok && <CheckCircle2 size={15} />} {status.text}</div>}
-          <div className="row-actions">
-            <Button onClick={test}>Test connection</Button>
-            <Button variant="primary" onClick={save}>Save AI connection</Button>
-          </div>
+          </details>
+
           {!LOCAL_PROVIDERS.has(info.id) && (
-            <p className="privacy-note">When you use an AI action, the text needed for it (for example a transcript) is sent to {info.label.replace(/ \(.*\)/, "")} under your own account. Recordings are never sent to the AI model. Check that your client agreements allow this, or choose a local option.</p>
+            <p className="privacy-note">When you use an AI button, the text it needs (for example a transcript) is sent to {guide.name} under your own account. Recordings are never sent to the AI model. Check this fits your client agreements, or choose Ollama to keep everything on this computer.</p>
           )}
         </div>
       )}

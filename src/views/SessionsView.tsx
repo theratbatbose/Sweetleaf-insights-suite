@@ -216,7 +216,7 @@ export function SessionsView({ study, update, flush, transcriptIndex, refreshTra
               </div>
             </div>
             <div className="row-actions">
-              <Button onClick={startBulkImport} icon={<FolderInput size={15} />}>Bulk import</Button>
+              <Button onClick={startBulkImport} icon={<FolderInput size={15} />} tour="bulk-import">Bulk import</Button>
               <Button onClick={addRecording} icon={<Upload size={15} />}>Add recording</Button>
               <Button onClick={importTranscript} icon={<FileText size={15} />}>Import transcript</Button>
             </div>
@@ -351,7 +351,7 @@ function ParticipantList({ study, selectedId, onSelect, transcriptIndex, jobs }:
     return participant.media.length ? "Recording, no transcript" : "No recording yet";
   };
   return (
-    <aside className="side-list">
+    <aside className="side-list" data-tour="people-list">
       {groups.map(({ segment, people }) => (
         <div key={segment?.id ?? "none"} className="side-group">
           <div className="side-label"><span className="dot" style={{ background: segment?.color ?? "#aaa" }} />{segment?.name ?? "No segment"}</div>
@@ -410,7 +410,7 @@ function TranscriptPanel({ transcript, loading, currentTime, onSeek, onNote, onC
   };
 
   return (
-    <div className="transcript-card">
+    <div className="transcript-card" data-tour="transcript">
       <div className="card-title-row">
         <div><div className="eyebrow">Transcript</div><h3>{lines.length ? `${lines.length} lines${transcript?.source === "ai" ? " · auto-transcribed" : ""}` : "No transcript yet"}</h3></div>
         {lines.length > 0 && (

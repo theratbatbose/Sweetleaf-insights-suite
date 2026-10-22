@@ -1,0 +1,43 @@
+appId: in.sweetleaf.suite
+productName: Sweetleaf Suite
+copyright: Sweetleaf Suite
+directories:
+  app: app
+  output: release
+  buildResources: assets
+asar: true
+# ffmpeg is a program, so it must sit outside the app archive to be runnable.
+asarUnpack:
+  - node_modules/ffmpeg-static/**
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  icon: assets/icon.png
+  artifactName: Sweetleaf-Setup.${ext}
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: always
+  createStartMenuShortcut: true
+  shortcutName: Sweetleaf Suite
+  runAfterFinish: true
+mac:
+  target:
+    - target: dmg
+      arch: [arm64]
+  icon: assets/icon.png
+  category: public.app-category.productivity
+  # Not signed with an Apple Developer ID; "-" gives an ad-hoc signature so Apple Silicon Macs can run it.
+  identity: "-"
+  hardenedRuntime: false
+  artifactName: Sweetleaf-mac.${ext}
+linux:
+  target: [AppImage]
+  icon: assets/icon.png
+  category: Office
+  artifactName: Sweetleaf-linux.${ext}
+# Everything the app needs is staged into app/ with production dependencies already installed.
+npmRebuild: false
+publish: null

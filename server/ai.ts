@@ -1,4 +1,5 @@
 import type { LlmProviderId, LlmSettings } from "../shared/types";
+import { describeNetworkError, isTransient } from "./network";
 import { HttpError } from "./storage";
 
 export type ProviderInfo = {
@@ -51,7 +52,7 @@ export function friendlyError(status: number, body: string, label: string, model
   const detail = extractError(body);
   const lower = detail.toLowerCase();
   if (status === 401 || /invalid.{0,20}(api key|x-api-key|authentication)|incorrect api key|api key not valid|unauthorized/.test(lower)) {
-    return `${label} rejected the API key. Open Settings → AI, paste the key again (no spaces) and press Test connection.`;
+    return `${label} rejected the API key. Copy it again from the provider's website (the whole key, no spaces) and paste it in Settings → AI. A ChatGPT Plus or Claude Pro login is not an API key.`;
   }
   if (status === 402 || /insufficient_quota|credit balance|billing|exceeded your current quota|payment required|out of credits/.test(lower)) {
     return `Your ${label} account has no credit or billing is not set up. Add credit in the provider's billing page, then try again. (${detail})`;
@@ -79,9 +80,9 @@ export async function providerFetch(url: string, init: () => RequestInit, option
     try {
       response = await fetch(url, { ...init(), signal: AbortSignal.timeout(options.timeoutMs) });
     } catch (error) {
-      const message = (error as Error).name === "TimeoutError" ? "the request timed out" : (error as Error).message;
-      lastError = `Could not reach ${options.label} at ${new URL(url).origin}: ${message}. Check the internet connection${/127\.0\.0\.1|localhost/.test(url) ? " and that the local server is running" : ""}.`;
-      if (attempt < MAX_ATTEMPTS && (error as Error).name !== "TimeoutError") { await sleep(2000 * 2 ** (attempt - 1)); continue; }
+      lastError = describeNetworkError(error, url, options.label);
+      // Retry a dropped connection a couple of times; a blocked or misconfigured network won't fix itself.
+      if (attempt < 3 && isTransient(error)) { await sleep(1500 * attempt); continue; }
       throw new HttpError(502, lastError);
     }
     const text = await response.text();
@@ -244,6 +245,38 @@ export async function listModels(llm: LlmSettings): Promise<string[]> {
 }
 
 export async function testConnection(llm: LlmSettings) {
-  const reply = await chat(llm, "You are a connection test.", "Reply with the single word: ready", { maxTokens: 1024 });
-  return reply.trim().slice(0, 80) || "(empty reply)";
+  try {
+    const reply = await chat(llm, "You are a connection test.", "Reply with the single word: ready", { maxTokens: 2048 });
+    return reply.trim().slice(0, 80) || "ready";
+  } catch (error) {
+    // Reasoning models may spend the small test budget "thinking". The model still answered.
+    if (error instanceof TruncatedError) return "ready";
+    throw error;
+  }
+}
+
+const version = (id: string) => (id.match(/\d+(?:\.\d+)*/g) ?? []).map((part) => part.split(".").map(Number)).flat();
+const newestFirst = (a: string, b: string) => {
+  const [va, vb] = [version(a), version(b)];
+  for (let i = 0; i < Math.max(va.length, vb.length); i += 1) {
+    if ((va[i] ?? -1) !== (vb[i] ?? -1)) return (vb[i] ?? -1) - (va[i] ?? -1);
+  }
+  return 0;
+};
+
+/** A sensible default from the provider's own model list: capable, but not the most expensive. */
+export function recommendedModel(provider: LlmProviderId | null, ids: string[]): string {
+  const pick = (filter: (id: string) => boolean, sort = false) => {
+    const found = ids.filter(filter);
+    return (sort ? found.sort(newestFirst) : found)[0];
+  };
+  const stable = (id: string) => !/(preview|exp|experimental|beta|latest|tts|image|audio|vision|embedding|live|search|thinking|computer)/i.test(id);
+  switch (provider) {
+    // Anthropic lists newest models first.
+    case "anthropic": return pick((id) => /sonnet/i.test(id)) ?? ids[0] ?? "";
+    case "openai": return pick((id) => /^gpt-\d+(\.\d+)?-mini$/.test(id), true) ?? pick((id) => /^gpt-\d+(\.\d+)?$/.test(id), true) ?? ids[0] ?? "";
+    case "gemini": return pick((id) => /^gemini-[\d.]+-flash$/.test(id), true) ?? pick((id) => /flash/.test(id) && !/lite/.test(id) && stable(id), true) ?? ids[0] ?? "";
+    case "openrouter": return pick((id) => /^anthropic\/claude-.*sonnet/.test(id) && stable(id), true) ?? pick((id) => /^openai\/gpt-.*mini$/.test(id), true) ?? ids[0] ?? "";
+    default: return ids[0] ?? "";
+  }
 }

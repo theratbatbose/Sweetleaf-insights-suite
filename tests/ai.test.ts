@@ -79,3 +79,25 @@ describe("quota errors", () => {
     quota.close();
   });
 });
+
+describe("recommendedModel", () => {
+  it("picks a sensible default from each provider's list", async () => {
+    const { recommendedModel } = await import("../server/ai");
+    expect(recommendedModel("anthropic", ["claude-opus-9", "claude-sonnet-9", "claude-haiku-9", "claude-sonnet-8"])).toBe("claude-sonnet-9");
+    expect(recommendedModel("openai", ["gpt-5.4", "gpt-5.4-mini", "gpt-5.5-mini", "o4-mini", "gpt-5.4-nano"])).toBe("gpt-5.5-mini");
+    expect(recommendedModel("gemini", ["gemini-2.5-flash", "gemini-3.6-flash", "gemini-3.5-flash-lite", "gemini-3.7-flash-preview"])).toBe("gemini-3.6-flash");
+    expect(recommendedModel("ollama", ["qwen3:8b"])).toBe("qwen3:8b");
+    expect(recommendedModel("anthropic", [])).toBe("");
+  });
+});
+
+describe("describeNetworkError", () => {
+  it("explains common network failures in plain language", async () => {
+    const { describeNetworkError } = await import("../server/network");
+    const wrap = (code: string) => Object.assign(new TypeError("fetch failed"), { cause: { code, message: code } });
+    expect(describeNetworkError(wrap("ENOTFOUND"), "https://api.openai.com/v1/models", "OpenAI")).toMatch(/couldn't find api.openai.com/);
+    expect(describeNetworkError(wrap("SELF_SIGNED_CERT_IN_CHAIN"), "https://api.openai.com/v1", "OpenAI")).toMatch(/certificate/);
+    expect(describeNetworkError(wrap("ECONNREFUSED"), "http://127.0.0.1:11434/api/tags", "Ollama")).toMatch(/Nothing is answering/);
+    expect(describeNetworkError(wrap("ECONNRESET"), "https://openrouter.ai/api/v1", "OpenRouter")).toMatch(/blocked or cut off/);
+  });
+});

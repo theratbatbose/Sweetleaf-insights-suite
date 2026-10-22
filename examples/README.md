@@ -2,6 +2,10 @@
 
 Practice files for trying Sweetleaf end to end. Everything here is invented; it is not real research.
 
+If you installed the desktop app, download these files as one ZIP: [Sweetleaf-example-files.zip](https://github.com/theratbatbose/Sweetleaf-insights-suite/releases/latest/download/Sweetleaf-example-files.zip).
+
+The same study is also built into Sweetleaf as the **demo study**, already analysed, with a guided tour. Use these files to practise the importing steps yourself.
+
 | File | Use it in |
 |---|---|
 | `01 Brief - Tea-time snacking.docx` | Setup → Brief |

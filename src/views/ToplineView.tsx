@@ -36,12 +36,12 @@ export function ToplineView({ study, update, flush }: ViewProps) {
               const draft = await api.draftTopline(study.id);
               setTopline({ title: draft.title || topline.title, intro: draft.intro, body: draft.body });
             }, "Draft written from your clusters, segment views and grid syntheses. Edit it into your voice.")}>Draft from my analysis</AiButton>
-            <button className="btn secondary" onClick={download("topline.docx")}><Download size={15} /> Word</button>
+            <button className="btn secondary" data-tour="topline-word" onClick={download("topline.docx")}><Download size={15} /> Word</button>
             <button className="btn secondary" onClick={download("topline.md")}><Download size={15} /> Markdown</button>
           </div>
         </div>
 
-        <div className="topline-editor" onDragOver={(event) => event.preventDefault()} onDrop={(event) => {
+        <div className="topline-editor" data-tour="topline" onDragOver={(event) => event.preventDefault()} onDrop={(event) => {
           event.preventDefault();
           const id = event.dataTransfer.getData("text/cluster");
           if (id) addBlock(id);

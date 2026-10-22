@@ -139,6 +139,7 @@ export async function getSettings(): Promise<Settings> {
   return {
     onboarded: saved?.onboarded ?? false,
     demoSeeded: saved?.demoSeeded ?? false,
+    proxy: saved?.proxy ?? "",
     llm: { ...defaultSettings.llm, ...(saved?.llm ?? {}) },
     stt: { ...defaultSettings.stt, ...(saved?.stt ?? {}) },
   };

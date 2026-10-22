@@ -1,8 +1,8 @@
 // One-click launcher: installs dependencies and builds on first run (or after an update), then starts Sweetleaf.
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { existsSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 process.chdir(root);
@@ -45,5 +45,16 @@ if (!existsSync(server) || !existsSync(client) || sources > Math.min(statSync(se
   run(["run", "build"], "Preparing the app");
 }
 
-process.env.SWEETLEAF_OPEN ??= "1";
-await import(pathToFileURL(server).href);
+// Start the server in a fresh Node process that trusts the certificates installed on this computer.
+// Antivirus software and office networks often inspect secure connections with their own certificate,
+// which Node.js rejects by default ("unable to get local issuer certificate").
+const args = [];
+if (process.allowedNodeEnvironmentFlags.has("--use-system-ca")) args.push("--use-system-ca");
+const child = spawn(process.execPath, [...args, server], {
+  stdio: "inherit",
+  env: { ...process.env, SWEETLEAF_OPEN: process.env.SWEETLEAF_OPEN ?? "1", NODE_USE_SYSTEM_CA: "1" },
+});
+const stop = () => child.kill();
+process.on("SIGINT", stop);
+process.on("SIGTERM", stop);
+child.on("exit", (code) => process.exit(code ?? 0));
